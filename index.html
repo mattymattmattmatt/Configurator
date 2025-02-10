@@ -119,7 +119,7 @@
           <canvas id="product-canvas"></canvas>
         </div>
         <div class="sku-display">
-          SKU: <span id="sku"></span>
+          SKU: <span id="sku">XXXXXXXX</span>
         </div>
       </div>
       <!-- Right Column: Cascading Dropdowns -->
@@ -161,16 +161,35 @@
     </div>
   </div>
   
-  <!-- Three.js, OrbitControls, and GLTFLoader -->
+  <!-- Three.js and helpers -->
   <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
   
   <script>
     /*********************
+     * HELPER FUNCTION: Parse SKU
+     * Expected SKU format:
+     *  - Positions 0-1: Parent SKU (e.g. "GC")
+     *  - Positions 2-7: Identifier (e.g. "DGDCTP" or "SGDCTP")
+     *  - Positions 8-9: Size code (e.g. "12", "15", "18", "21")
+     *  - Positions 10-11: Sheet Colour short code
+     *  - Positions 12-13: Post Track Colour short code
+     *********************/
+    function parseSKU(sku) {
+      return {
+        parent: sku.substring(0,2).trim(),
+        identifier: sku.substring(2,8).trim(),
+        size: sku.substring(8,10).trim(),
+        sheet: sku.substring(10,12).trim(),
+        post: sku.substring(12,14).trim()
+      };
+    }
+  
+    /*********************
      * DATA SETS
      *********************/
-    // Sample configuration dataset (replace this with your full 304 configurations)
+    // Sample configuration dataset (replace with your full 304 configurations)
     const configurations = [
       {
         "Parent SKU": "GC",
@@ -268,12 +287,13 @@
         this.colorMapping = colorMapping;
         this.currentModelFile = null;
         this.model = null;
-        // Two material slots: one for Sheet Colour, one for Post Track Colour.
+        // Two material slots: one for Sheet Colour and one for Post Track Colour.
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
         this.initUI();
-        this.updateConfiguration(); // Update with default selection.
+        // When the page loads, no valid selection is made so display fallback.
+        this.updateConfiguration();
         this.animate();
       }
   
@@ -309,6 +329,7 @@
       initUI() {
         this.populateParentDropdown();
   
+        // Add event listeners for cascading dropdowns.
         document.getElementById('dropdown-parent').addEventListener('change', () => {
           this.updateSKUOptions();
           this.updateSizeOptions();
@@ -344,7 +365,8 @@
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
-        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"]))];
+        // In our data, Parent SKU is always "GC".
+        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
         uniqueParents.forEach(parent => {
           const option = document.createElement('option');
           option.value = parent;
@@ -357,9 +379,15 @@
         const parent = document.getElementById('dropdown-parent').value;
         const select = document.getElementById('dropdown-sku');
         select.innerHTML = "";
-        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"] === parent);
-        // Extract SKU substring from position 2 to 8.
-        const uniqueSKU = [...new Set(filtered.map(cfg => cfg["SKU"].substring(2,8)))];
+        // Add a placeholder option.
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.textContent = "Select SKU";
+        select.appendChild(placeholder);
+  
+        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
+        // Use the helper function to extract the identifier (positions 2–8)
+        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
@@ -373,12 +401,18 @@
         const sku = document.getElementById('dropdown-sku').value;
         const select = document.getElementById('dropdown-size');
         select.innerHTML = "";
-        const filtered = this.configurations.filter(cfg =>
-          cfg["Parent SKU"] === parent &&
-          cfg["SKU"].substring(2,8) === sku
-        );
-        const uniqueSizes = [...new Set(filtered.map(cfg => cfg["SKU"].substring(8,10)))];
-        uniqueSizes.sort(); // sort ascending (e.g. "12", "15", "18", "21")
+        // Placeholder
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.textContent = "Select Size";
+        select.appendChild(placeholder);
+  
+        const filtered = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
+        });
+        const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
+        uniqueSizes.sort(); // e.g., "12", "15", "18", "21"
         uniqueSizes.forEach(sizeCode => {
           const option = document.createElement('option');
           option.value = sizeCode;
@@ -393,17 +427,21 @@
         const sizeCode = document.getElementById('dropdown-size').value;
   
         // Filter configurations that match the current selections.
-        const filtered = this.configurations.filter(cfg =>
-          cfg["Parent SKU"] === parent &&
-          cfg["SKU"].substring(2,8) === sku &&
-          cfg["SKU"].substring(8,10) === sizeCode
-        );
+        const filtered = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent &&
+                 parsed.identifier === sku &&
+                 parsed.size === sizeCode;
+        });
   
-        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
-        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
-  
+        // For Sheet Colour
         const sheetSelect = document.getElementById('dropdown-sheet');
         sheetSelect.innerHTML = "";
+        const sheetPlaceholder = document.createElement('option');
+        sheetPlaceholder.value = "";
+        sheetPlaceholder.textContent = "Select Sheet Colour";
+        sheetSelect.appendChild(sheetPlaceholder);
+        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
         uniqueSheet.forEach(color => {
           const option = document.createElement('option');
           option.value = color;
@@ -411,8 +449,14 @@
           sheetSelect.appendChild(option);
         });
   
+        // For Post Track Colour
         const postSelect = document.getElementById('dropdown-post');
         postSelect.innerHTML = "";
+        const postPlaceholder = document.createElement('option');
+        postPlaceholder.value = "";
+        postPlaceholder.textContent = "Select Post Colour";
+        postSelect.appendChild(postPlaceholder);
+        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
         uniquePost.forEach(color => {
           const option = document.createElement('option');
           option.value = color;
@@ -422,25 +466,40 @@
       }
   
       updateConfiguration() {
+        // Get current selections.
         const parent = document.getElementById('dropdown-parent').value;
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        const matching = this.configurations.filter(cfg =>
-          cfg["Parent SKU"] === parent &&
-          cfg["SKU"].substring(2,8) === sku &&
-          cfg["SKU"].substring(8,10) === sizeCode &&
-          cfg["Sheet Colour"] === sheetColor &&
-          cfg["Post Track Colour"] === postColor
-        );
+        // If any required field is not selected, show defaults.
+        if (!sku || !sizeCode || !sheetColor || !postColor) {
+          document.getElementById('sku').textContent = "XXXXXXXX";
+          // If no model is loaded, load a default model (choose one, e.g. GCDG.glb)
+          if (!this.model) {
+            this.loadDefaultModel();
+          } else {
+            this.updateMaterialsDefault();
+          }
+          return;
+        }
+  
+        // Otherwise, find the matching configuration.
+        const matching = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent &&
+                 parsed.identifier === sku &&
+                 parsed.size === sizeCode &&
+                 cfg["Sheet Colour"] === sheetColor &&
+                 cfg["Post Track Colour"] === postColor;
+        });
   
         if (matching.length > 0) {
           const config = matching[0];
           document.getElementById('sku').textContent = config["SKU"];
   
-          // Determine which model to load based on the first 4 characters.
+          // Determine which model file to load based on the first 4 characters.
           const modelPrefix = config["SKU"].substring(0,4);
           let modelFile = "";
           if (modelPrefix === "GCDG") {
@@ -459,6 +518,39 @@
         }
       }
   
+      loadDefaultModel() {
+        // Load a default model (here we use "models/GCDG.glb")
+        const loader = new THREE.GLTFLoader();
+        loader.load("models/GCDG.glb", (gltf) => {
+          if (this.model) {
+            this.scene.remove(this.model);
+          }
+          this.model = gltf.scene;
+          // Use a default scale (e.g., 1.0)
+          this.model.scale.set(1, 1, 1);
+          this.scene.add(this.model);
+          this.currentModelFile = "models/GCDG.glb";
+  
+          // Get material slots.
+          this.model.traverse((child) => {
+            if (child.isMesh && child.material) {
+              const name = child.material.name.toLowerCase();
+              if (name.includes("sheet")) {
+                this.materials.sheet = child.material;
+              }
+              if (name.includes("post")) {
+                this.materials.postTrack = child.material;
+              }
+            }
+          });
+  
+          // Set default grey colors.
+          this.updateMaterialsDefault();
+        }, undefined, (error) => {
+          console.error("Error loading default model:", error);
+        });
+      }
+  
       loadModel(modelFile, config) {
         const loader = new THREE.GLTFLoader();
         loader.load(modelFile, (gltf) => {
@@ -466,13 +558,11 @@
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // Scale is based on the size code (e.g. "12" means 1.2m).
-          const scaleValue = parseInt(config["SKU"].substring(8,10)) / 10;
+          const scaleValue = parseInt(parseSKU(config["SKU"]).size) / 10;
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
   
-          // Find the two material slots (assumed to have names including "sheet" and "post").
           this.model.traverse((child) => {
             if (child.isMesh && child.material) {
               const name = child.material.name.toLowerCase();
@@ -492,7 +582,7 @@
       }
   
       updateMaterials(config) {
-        const scaleValue = parseInt(config["SKU"].substring(8,10)) / 10;
+        const scaleValue = parseInt(parseSKU(config["SKU"]).size) / 10;
         if (this.model) {
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
         }
@@ -512,17 +602,31 @@
         }
       }
   
+      updateMaterialsDefault() {
+        // Set the materials to a default grey (#808080).
+        if (this.materials.sheet) {
+          this.materials.sheet.color.set("#808080");
+          this.materials.sheet.needsUpdate = true;
+        }
+        if (this.materials.postTrack) {
+          this.materials.postTrack.color.set("#808080");
+          this.materials.postTrack.needsUpdate = true;
+        }
+      }
+  
       resetSelections() {
-        // Reset each dropdown to the first available option based on the full dataset.
-        document.getElementById('dropdown-parent').value = this.configurations[0]["Parent SKU"];
+        // Reset dropdowns to their initial state (with placeholders).
+        document.getElementById('dropdown-parent').value = this.configurations[0]["Parent SKU"].trim();
         this.updateSKUOptions();
-        document.getElementById('dropdown-sku').value = this.configurations[0]["SKU"].substring(2,8);
+        document.getElementById('dropdown-sku').value = "";
         this.updateSizeOptions();
-        document.getElementById('dropdown-size').value = this.configurations[0]["SKU"].substring(8,10);
+        document.getElementById('dropdown-size').value = "";
         this.updateColorOptions();
-        document.getElementById('dropdown-sheet').value = this.configurations[0]["Sheet Colour"];
-        document.getElementById('dropdown-post').value = this.configurations[0]["Post Track Colour"];
-        this.updateConfiguration();
+        document.getElementById('dropdown-sheet').value = "";
+        document.getElementById('dropdown-post').value = "";
+        // Show default fallback.
+        document.getElementById('sku').textContent = "XXXXXXXX";
+        this.updateMaterialsDefault();
       }
   
       onWindowResize() {
