@@ -122,34 +122,33 @@
           SKU: <span id="sku"></span>
         </div>
       </div>
-      <!-- Right Column: Controls -->
+      <!-- Right Column: Cascading Dropdowns -->
       <div class="controls">
-        <!-- Controls for Parent SKU, SKU, Size, Sheet Colour, and Post Track Colour -->
-        <div class="control-group" id="control-parentsku">
+        <div class="control-group">
           <div class="control-header">
             <span class="control-title">Parent SKU</span>
-            <select id="dropdown-parentsku"></select>
+            <select id="dropdown-parent"></select>
           </div>
         </div>
-        <div class="control-group" id="control-sku">
+        <div class="control-group">
           <div class="control-header">
             <span class="control-title">SKU</span>
             <select id="dropdown-sku"></select>
           </div>
         </div>
-        <div class="control-group" id="control-size">
+        <div class="control-group">
           <div class="control-header">
             <span class="control-title">Size (m)</span>
             <select id="dropdown-size"></select>
           </div>
         </div>
-        <div class="control-group" id="control-sheet">
+        <div class="control-group">
           <div class="control-header">
             <span class="control-title">Sheet Colour</span>
             <select id="dropdown-sheet"></select>
           </div>
         </div>
-        <div class="control-group" id="control-post">
+        <div class="control-group">
           <div class="control-header">
             <span class="control-title">Post Track Colour</span>
             <select id="dropdown-post"></select>
@@ -171,8 +170,7 @@
     /*********************
      * DATA SETS
      *********************/
-    // (For brevity, only one configuration is shown here.
-    // In your actual code, include all configuration objects from your first dataset.)
+    // Sample configuration dataset (replace this with your full 304 configurations)
     const configurations = [
       {
         "Parent SKU": "GC",
@@ -182,11 +180,56 @@
         "Post Track Colour": "Banyan Brown",
         "Frame Colour": NaN,
         "Lattice Colour": NaN
+      },
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCDGDCTP15BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
+      },
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCDGDCTP18BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
+      },
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCDGDCTP21BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
+      },
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCSGDCTP12BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
+      },
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCSGDCTP15BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
       }
-      // ... include all your configuration objects here
+      // ... include all 304 configurations here
     ];
-    
-    // Colour mapping dataset from your second data block
+  
+    // Colour mapping dataset
     const colorMapping = [
       { "Colour": "Armour Grey", "Short Code": "AG", "Hex": "#888B8A" },
       { "Colour": "Banyan Brown", "Short Code": "BW", "Hex": "#6C6153" },
@@ -215,246 +258,287 @@
       { "Colour": "Zinc/Al", "Short Code": "AZ", "Hex": "#BDBFBA" },
       { "Colour": "Green", "Short Code": "GR", "Hex": "#00BF00" }
     ];
-    
+  
     /*********************
      * PRODUCT CONFIGURATOR CLASS
      *********************/
     class ProductConfigurator {
       constructor() {
-        // Store datasets
         this.configurations = configurations;
         this.colorMapping = colorMapping;
-        // To keep track of the currently loaded model
         this.currentModelFile = null;
         this.model = null;
-        // We only need two material slots for this project:
+        // Two material slots: one for Sheet Colour, one for Post Track Colour.
         this.materials = { sheet: null, postTrack: null };
-    
+  
         this.initThreeJS();
         this.initUI();
-        this.updateConfiguration(); // Initialize with a default configuration
+        this.updateConfiguration(); // Update with default selection.
         this.animate();
       }
-    
+  
       initThreeJS() {
         this.scene = new THREE.Scene();
         const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(
-          75,
-          container.clientWidth / container.clientHeight,
-          0.1,
-          1000
-        );
+        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({
           canvas: document.querySelector('#product-canvas'),
           antialias: true,
           alpha: true
         });
         this.renderer.setClearColor(0x000000, 0);
-    
+  
         this.camera.position.set(0, 3, 5);
         this.camera.lookAt(0, 0, 0);
-    
+  
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
-    
+  
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(5, 5, 5);
         this.scene.add(directionalLight);
-    
+  
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-    
+  
         window.addEventListener('resize', this.onWindowResize.bind(this));
         this.onWindowResize();
       }
-    
+  
       initUI() {
-        // Populate dropdowns with unique options extracted from the configurations.
-        this.populateDropdowns();
-    
-        // Add change event listeners for each dropdown.
-        document.getElementById('dropdown-parentsku').addEventListener('change', () => this.updateConfiguration());
-        document.getElementById('dropdown-sku').addEventListener('change', () => this.updateConfiguration());
-        document.getElementById('dropdown-size').addEventListener('change', () => this.updateConfiguration());
-        document.getElementById('dropdown-sheet').addEventListener('change', () => this.updateConfiguration());
-        document.getElementById('dropdown-post').addEventListener('change', () => this.updateConfiguration());
-    
-        // Reset button listener
+        this.populateParentDropdown();
+  
+        document.getElementById('dropdown-parent').addEventListener('change', () => {
+          this.updateSKUOptions();
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sku').addEventListener('change', () => {
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-size').addEventListener('change', () => {
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sheet').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-post').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+  
         document.getElementById('reset-config').addEventListener('click', () => {
           this.resetSelections();
         });
+  
+        // Initialize cascading dropdowns.
+        this.updateSKUOptions();
+        this.updateSizeOptions();
+        this.updateColorOptions();
       }
-    
-      populateDropdowns() {
-        // For Parent SKU, use the unique values from the "Parent SKU" field.
-        const uniqueParent = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"]))];
-        this.populateSelect("dropdown-parentsku", uniqueParent);
-    
-        // For SKU dropdown, extract the substring (positions 2–8) from each full SKU.
-        const uniqueSKU = [...new Set(this.configurations.map(cfg => cfg["SKU"].substring(2,8)))];
-        this.populateSelect("dropdown-sku", uniqueSKU);
-    
-        // For Size, extract the substring (positions 8–10) and display as m (e.g. "12" becomes "1.2m")
-        const uniqueSizeCodes = [...new Set(this.configurations.map(cfg => cfg["SKU"].substring(8,10)))];
-        const sizeOptions = uniqueSizeCodes.map(code => ({ code: code, display: (parseInt(code)/10).toFixed(1) }));
-        this.populateSelect("dropdown-size", sizeOptions, true);
-    
-        // For Sheet Colour
-        const uniqueSheet = [...new Set(this.configurations.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
-        this.populateSelect("dropdown-sheet", uniqueSheet);
-    
-        // For Post Track Colour
-        const uniquePost = [...new Set(this.configurations.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
-        this.populateSelect("dropdown-post", uniquePost);
-      }
-    
-      // Helper function to populate a select element.
-      // If isObject is true, options is expected to be an array of objects {code, display}
-      populateSelect(selectId, options, isObject = false) {
-        const select = document.getElementById(selectId);
+  
+      populateParentDropdown() {
+        const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
-        options.forEach(opt => {
-          const optionEl = document.createElement("option");
-          if (isObject) {
-            optionEl.value = opt.code;
-            optionEl.textContent = opt.display + "m";
-          } else {
-            optionEl.value = opt;
-            optionEl.textContent = opt;
-          }
-          select.appendChild(optionEl);
+        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"]))];
+        uniqueParents.forEach(parent => {
+          const option = document.createElement('option');
+          option.value = parent;
+          option.textContent = parent;
+          select.appendChild(option);
         });
       }
-    
-      updateConfiguration() {
-        // Read the current selections.
-        const selectedParent = document.getElementById('dropdown-parentsku').value;
-        const selectedSKU = document.getElementById('dropdown-sku').value;
-        const selectedSizeCode = document.getElementById('dropdown-size').value; // e.g., "12"
-        const selectedSheet = document.getElementById('dropdown-sheet').value;
-        const selectedPost = document.getElementById('dropdown-post').value;
-    
-        // Find a configuration that matches all these selections.
-        const matchingConfigs = this.configurations.filter(cfg => {
-          return cfg["Parent SKU"] === selectedParent &&
-                 cfg["SKU"].substring(2,8) === selectedSKU &&
-                 cfg["SKU"].substring(8,10) === selectedSizeCode &&
-                 cfg["Sheet Colour"] === selectedSheet &&
-                 cfg["Post Track Colour"] === selectedPost;
+  
+      updateSKUOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const select = document.getElementById('dropdown-sku');
+        select.innerHTML = "";
+        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"] === parent);
+        // Extract SKU substring from position 2 to 8.
+        const uniqueSKU = [...new Set(filtered.map(cfg => cfg["SKU"].substring(2,8)))];
+        uniqueSKU.forEach(sku => {
+          const option = document.createElement('option');
+          option.value = sku;
+          option.textContent = sku;
+          select.appendChild(option);
         });
-    
-        if(matchingConfigs.length > 0) {
-          const config = matchingConfigs[0];
-          // Update the displayed SKU.
+      }
+  
+      updateSizeOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const select = document.getElementById('dropdown-size');
+        select.innerHTML = "";
+        const filtered = this.configurations.filter(cfg =>
+          cfg["Parent SKU"] === parent &&
+          cfg["SKU"].substring(2,8) === sku
+        );
+        const uniqueSizes = [...new Set(filtered.map(cfg => cfg["SKU"].substring(8,10)))];
+        uniqueSizes.sort(); // sort ascending (e.g. "12", "15", "18", "21")
+        uniqueSizes.forEach(sizeCode => {
+          const option = document.createElement('option');
+          option.value = sizeCode;
+          option.textContent = (parseInt(sizeCode) / 10).toFixed(1) + "m";
+          select.appendChild(option);
+        });
+      }
+  
+      updateColorOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const sizeCode = document.getElementById('dropdown-size').value;
+  
+        // Filter configurations that match the current selections.
+        const filtered = this.configurations.filter(cfg =>
+          cfg["Parent SKU"] === parent &&
+          cfg["SKU"].substring(2,8) === sku &&
+          cfg["SKU"].substring(8,10) === sizeCode
+        );
+  
+        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
+        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
+  
+        const sheetSelect = document.getElementById('dropdown-sheet');
+        sheetSelect.innerHTML = "";
+        uniqueSheet.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          sheetSelect.appendChild(option);
+        });
+  
+        const postSelect = document.getElementById('dropdown-post');
+        postSelect.innerHTML = "";
+        uniquePost.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          postSelect.appendChild(option);
+        });
+      }
+  
+      updateConfiguration() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const sizeCode = document.getElementById('dropdown-size').value;
+        const sheetColor = document.getElementById('dropdown-sheet').value;
+        const postColor = document.getElementById('dropdown-post').value;
+  
+        const matching = this.configurations.filter(cfg =>
+          cfg["Parent SKU"] === parent &&
+          cfg["SKU"].substring(2,8) === sku &&
+          cfg["SKU"].substring(8,10) === sizeCode &&
+          cfg["Sheet Colour"] === sheetColor &&
+          cfg["Post Track Colour"] === postColor
+        );
+  
+        if (matching.length > 0) {
+          const config = matching[0];
           document.getElementById('sku').textContent = config["SKU"];
-    
-          // Determine which model file to load based on the first 4 characters of the SKU.
-          const modelFilePrefix = config["SKU"].substring(0,4);
+  
+          // Determine which model to load based on the first 4 characters.
+          const modelPrefix = config["SKU"].substring(0,4);
           let modelFile = "";
-          if(modelFilePrefix === "GCDG") {
+          if (modelPrefix === "GCDG") {
             modelFile = "models/GCDG.glb";
-          } else if(modelFilePrefix === "GCSG") {
+          } else if (modelPrefix === "GCSG") {
             modelFile = "models/GCSG.glb";
           }
-    
-          // If the model file has changed, load the new model; otherwise just update the material colours.
-          if(this.currentModelFile !== modelFile) {
+  
+          if (this.currentModelFile !== modelFile) {
             this.loadModel(modelFile, config);
           } else {
             this.updateMaterials(config);
           }
         } else {
-          console.error("No matching configuration found for the selected options.");
+          console.error("No matching configuration found.");
         }
       }
-    
+  
       loadModel(modelFile, config) {
         const loader = new THREE.GLTFLoader();
         loader.load(modelFile, (gltf) => {
-          // Remove the previous model (if any)
-          if(this.model) {
+          if (this.model) {
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // Scale the model using the size value.
-          const scaleValue = parseInt(document.getElementById('dropdown-size').value) / 10;
+          // Scale is based on the size code (e.g. "12" means 1.2m).
+          const scaleValue = parseInt(config["SKU"].substring(8,10)) / 10;
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
-    
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
-    
-          // Identify the two material slots.
-          // Here we assume the model’s materials are named (or contain) "sheet" and "post" respectively.
+  
+          // Find the two material slots (assumed to have names including "sheet" and "post").
           this.model.traverse((child) => {
-            if(child.isMesh && child.material) {
-              const matName = child.material.name.toLowerCase();
-              if(matName.includes("sheet")) {
+            if (child.isMesh && child.material) {
+              const name = child.material.name.toLowerCase();
+              if (name.includes("sheet")) {
                 this.materials.sheet = child.material;
               }
-              if(matName.includes("post")) {
+              if (name.includes("post")) {
                 this.materials.postTrack = child.material;
               }
             }
           });
-    
-          // Now update the material colours.
+  
           this.updateMaterials(config);
         }, undefined, (error) => {
           console.error("Error loading model:", error);
         });
       }
-    
+  
       updateMaterials(config) {
-        // Update model scale based on the selected size.
-        const scaleValue = parseInt(document.getElementById('dropdown-size').value) / 10;
-        if(this.model) {
+        const scaleValue = parseInt(config["SKU"].substring(8,10)) / 10;
+        if (this.model) {
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
         }
-    
-        // Update Sheet Colour material.
+  
         const sheetColorName = config["Sheet Colour"];
         const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColorName);
-        if(this.materials.sheet && sheetColorObj) {
+        if (this.materials.sheet && sheetColorObj) {
           this.materials.sheet.color.set(sheetColorObj["Hex"]);
           this.materials.sheet.needsUpdate = true;
         }
-    
-        // Update Post Track Colour material.
+  
         const postColorName = config["Post Track Colour"];
         const postColorObj = this.colorMapping.find(c => c["Colour"] === postColorName);
-        if(this.materials.postTrack && postColorObj) {
+        if (this.materials.postTrack && postColorObj) {
           this.materials.postTrack.color.set(postColorObj["Hex"]);
           this.materials.postTrack.needsUpdate = true;
         }
       }
-    
+  
       resetSelections() {
-        // Reset dropdowns to match the first configuration.
-        const defaultConfig = this.configurations[0];
-        document.getElementById('dropdown-parentsku').value = defaultConfig["Parent SKU"];
-        document.getElementById('dropdown-sku').value = defaultConfig["SKU"].substring(2,8);
-        document.getElementById('dropdown-size').value = defaultConfig["SKU"].substring(8,10);
-        document.getElementById('dropdown-sheet').value = defaultConfig["Sheet Colour"];
-        document.getElementById('dropdown-post').value = defaultConfig["Post Track Colour"];
+        // Reset each dropdown to the first available option based on the full dataset.
+        document.getElementById('dropdown-parent').value = this.configurations[0]["Parent SKU"];
+        this.updateSKUOptions();
+        document.getElementById('dropdown-sku').value = this.configurations[0]["SKU"].substring(2,8);
+        this.updateSizeOptions();
+        document.getElementById('dropdown-size').value = this.configurations[0]["SKU"].substring(8,10);
+        this.updateColorOptions();
+        document.getElementById('dropdown-sheet').value = this.configurations[0]["Sheet Colour"];
+        document.getElementById('dropdown-post').value = this.configurations[0]["Post Track Colour"];
         this.updateConfiguration();
       }
-    
+  
       onWindowResize() {
         const container = document.getElementById('canvas-container');
         this.camera.aspect = container.clientWidth / container.clientHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(container.clientWidth, container.clientHeight);
       }
-    
+  
       animate() {
         requestAnimationFrame(this.animate.bind(this));
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
       }
     }
-    
+  
     window.addEventListener('load', () => {
       new ProductConfigurator();
     });
