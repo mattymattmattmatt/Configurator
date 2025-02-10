@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>3D Cube Configurator</title>
+  <title>Gate Configurator</title>
   <style>
     :root {
       --primary: #2c3e50;
@@ -10,33 +10,33 @@
       --background: #ecf0f1;
       --text: #2c3e50;
     }
-    
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       font-family: 'Segoe UI', system-ui, sans-serif;
     }
-    
+
     body {
       background: var(--background);
       color: var(--text);
       min-height: 100vh;
     }
-    
+
     .container {
       max-width: 1600px;
       margin: 0 auto;
       padding: 2rem;
     }
-    
+
     h1 {
       text-align: center;
       margin-bottom: 1rem;
       font-size: 2rem;
       color: var(--primary);
     }
-    
+
     .configurator {
       display: grid;
       grid-template-columns: 1fr 350px;
@@ -46,30 +46,29 @@
       padding: 2rem;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
-    
+
     .model-container {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
-    
+
     #canvas-container {
       width: 100%;
       height: 700px;
       border-radius: 12px;
       overflow: hidden;
       position: relative;
-      /* CSS gradient background: white at bottom, grey at top */
       background: linear-gradient(to top, #ffffff, #cccccc);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
-    
+
     .controls {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
-    
+
     .control-group {
       background: #fff;
       padding: 1rem;
@@ -77,21 +76,7 @@
       border: 1px solid #eee;
       transition: background-color 0.3s ease;
     }
-    
-    .control-group:hover {
-      background-color: #f8f8f8;
-    }
-    
-    .control-header {
-      margin-bottom: 0.5rem;
-    }
-    
-    .control-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--primary);
-    }
-    
+
     .sku-display {
       background: var(--primary);
       color: white;
@@ -100,8 +85,9 @@
       font-family: monospace;
       text-align: center;
     }
-    
+
     select.color-picker,
+    select.model-picker,
     select.size-picker {
       width: 100%;
       padding: 0.5rem;
@@ -109,7 +95,7 @@
       border-radius: 4px;
       font-size: 0.9rem;
     }
-    
+
     button#reset-config {
       width: 100%;
       padding: 0.5rem;
@@ -121,311 +107,117 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
-    
-    button#reset-config:hover {
-      background: #2980b9;
-    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>3D Cube Configurator</h1>
+    <h1>Gate Configurator</h1>
     <div class="configurator">
-      <!-- Left Column: 3D Model & SKU Display -->
       <div class="model-container">
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
         </div>
         <div class="sku-display">
-          SKU: <span id="sku">CUB2WHBKYEBLRDGN</span>
+          SKU: <span id="sku">GCDGDCTP12XX</span>
         </div>
       </div>
-      <!-- Right Column: Controls -->
       <div class="controls">
         <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Front</span>
-            <select class="color-picker" data-part="front"></select>
-          </div>
+          <span class="control-title">Model Type</span>
+          <select class="model-picker">
+            <option value="GCDG">Double Gate (GCDG)</option>
+            <option value="GCSG">Single Gate (GCSG)</option>
+          </select>
         </div>
+        
         <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Back</span>
-            <select class="color-picker" data-part="back"></select>
-          </div>
+          <span class="control-title">Size</span>
+          <select class="size-picker">
+            <option value="12">1.2m</option>
+            <option value="15">1.5m</option>
+            <option value="18">1.8m</option>
+            <option value="21">2.1m</option>
+          </select>
         </div>
+
         <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Left</span>
-            <select class="color-picker" data-part="left"></select>
-          </div>
+          <span class="control-title">Sheet Colour</span>
+          <select class="color-picker" data-part="sheet"></select>
         </div>
+
         <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Right</span>
-            <select class="color-picker" data-part="right"></select>
-          </div>
+          <span class="control-title">Post Track Colour</span>
+          <select class="color-picker" data-part="post_track"></select>
         </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Top</span>
-            <select class="color-picker" data-part="top"></select>
-          </div>
-        </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Bottom</span>
-            <select class="color-picker" data-part="bottom"></select>
-          </div>
-        </div>
-        <!-- New Control: Cube Size -->
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Cube Size (m)</span>
-            <select class="size-picker"></select>
-          </div>
-        </div>
-        <!-- Reset Button -->
+
         <div class="control-group">
           <button id="reset-config">Reset Configurator</button>
         </div>
       </div>
     </div>
   </div>
-  
-  <!-- Three.js, OrbitControls, and GLTFLoader -->
+
   <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-  
+
   <script>
-    class CubeConfigurator {
+    class GateConfigurator {
       constructor() {
         this.allowedColors = [
-          { hex: '#ffffff', code: 'WH', name: 'White' },
-          { hex: '#000000', code: 'BK', name: 'Black' },
-          { hex: '#ff0000', code: 'RD', name: 'Red' },
-          { hex: '#00ff00', code: 'GN', name: 'Green' },
-          { hex: '#0000ff', code: 'BL', name: 'Blue' },
-          { hex: '#ffff00', code: 'YE', name: 'Yellow' },
-          { hex: '#800080', code: 'PU', name: 'Purple' },
-          { hex: '#ffa500', code: 'OR', name: 'Orange' },
-          { hex: '#808080', code: 'GY', name: 'Grey' },
-          { hex: '#a52a2a', code: 'BN', name: 'Brown' }
+          { name: "Armour Grey", code: "AG", hex: "#888B8A" },
+          { name: "Banyan Brown", code: "BW", hex: "#6C6153" },
+          { name: "Beige", code: "BG", hex: "#9D8D76" }
         ];
-  
-        // Initialize cube size (in meters). The default is 2.
-        this.cubeSize = 2;
-  
-        // Object to hold references to materials for each face.
+
+        this.modelType = "GCDG";
+        this.size = "12";
+
         this.materials = {
-          front: null,
-          back: null,
-          left: null,
-          right: null,
-          top: null,
-          bottom: null
+          sheet: null,
+          post_track: null
         };
-  
+
         this.initThreeJS();
-        this.loadModel(); // Load your custom model instead of generating a cube programmatically.
+        this.loadModel();
         this.initUI();
         this.animate();
       }
-  
+
       initThreeJS() {
         this.scene = new THREE.Scene();
-        const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(
-          75,
-          container.clientWidth / container.clientHeight,
-          0.1,
-          1000
-        );
-        this.renderer = new THREE.WebGLRenderer({
-          canvas: document.querySelector('#product-canvas'),
-          antialias: true,
-          alpha: true // Enable transparency so the CSS gradient background shows through.
-        });
-        this.renderer.setClearColor(0x000000, 0); // Transparent background.
-  
-        this.camera.position.z = 5;
-        this.camera.position.y = 3;
-        this.camera.lookAt(0, 0, 0);
-  
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        this.scene.add(ambientLight);
-  
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 5, 5);
-        this.scene.add(directionalLight);
-  
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setClearColor(0x000000, 0);
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-  
         window.addEventListener('resize', this.onWindowResize.bind(this));
-        this.onWindowResize();
       }
-  
+
       loadModel() {
         const loader = new THREE.GLTFLoader();
-        // Load your custom cube model from the models folder.
-        loader.load('models/cube.glb', (gltf) => {
+        loader.load(`models/${this.modelType}.glb`, (gltf) => {
           this.model = gltf.scene;
-          // Set the model's scale based on the selected cube size.
-          this.model.scale.set(this.cubeSize, this.cubeSize, this.cubeSize);
+          this.model.scale.set(this.size / 10, this.size / 10, this.size / 10);
           this.scene.add(this.model);
-  
-          // Traverse the loaded model to map its materials.
-          this.model.traverse((child) => {
-            if (child.isMesh && child.material) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach((mat) => {
-                  let lowerName = mat.name.toLowerCase();
-                  if (this.materials.hasOwnProperty(lowerName)) {
-                    this.materials[lowerName] = mat;
-                  }
-                });
-              } else {
-                let lowerName = child.material.name.toLowerCase();
-                if (this.materials.hasOwnProperty(lowerName)) {
-                  this.materials[lowerName] = child.material;
-                }
-              }
-            }
-          });
-  
-          // Update the SKU once the model and its materials are ready.
-          this.updateSKU();
-        }, undefined, (error) => {
-          console.error('Error loading model:', error);
         });
       }
-  
-      createColorDropdowns() {
-        document.querySelectorAll('select.color-picker').forEach(select => {
-          const part = select.dataset.part;
-          select.innerHTML = this.allowedColors
-            .map(color => `<option value="${color.hex}" data-code="${color.code}">${color.name} (${color.code})</option>`)
-            .join('');
-        });
-      }
-  
-      createSizeDropdown() {
-        const sizeSelect = document.querySelector('select.size-picker');
-        let options = '';
-        for (let i = 1; i <= 10; i++) {
-          options += `<option value="${i}">${i}</option>`;
-        }
-        sizeSelect.innerHTML = options;
-      }
-  
-      initUI() {
-        this.createColorDropdowns();
-        this.createSizeDropdown();
-  
-        // Listen for changes on each color picker.
-        document.querySelectorAll('select.color-picker').forEach(select => {
-          select.addEventListener('change', (e) => {
-            const part = e.target.dataset.part;
-            const color = e.target.value;
-            this.updateMaterial(part, color);
-          });
-        });
-  
-        // Listen for changes on the size picker.
-        const sizeSelect = document.querySelector('select.size-picker');
-        sizeSelect.addEventListener('change', (e) => {
-          this.cubeSize = parseInt(e.target.value);
-          if (this.model) {
-            this.model.scale.set(this.cubeSize, this.cubeSize, this.cubeSize);
-          }
-          this.updateSKU();
-        });
-  
-        // Reset button to revert to default settings.
-        document.getElementById('reset-config').addEventListener('click', () => {
-          this.setInitialSelections();
-        });
-  
-        this.setInitialSelections();
-      }
-  
-      setInitialSelections() {
-        // Default colors for each face.
-        const initialColors = {
-          front: '#ffffff',
-          back: '#000000',
-          left: '#ffff00',
-          right: '#0000ff',
-          top: '#ff0000',
-          bottom: '#00ff00'
-        };
-  
-        Object.entries(initialColors).forEach(([part, color]) => {
-          const select = document.querySelector(`select.color-picker[data-part="${part}"]`);
-          if (select) {
-            select.value = color;
-            this.updateMaterial(part, color);
-          }
-        });
-  
-        // Set default cube size to 2m.
-        this.cubeSize = 2;
-        const sizeSelect = document.querySelector('select.size-picker');
-        if (sizeSelect) {
-          sizeSelect.value = this.cubeSize;
-        }
-        if (this.model) {
-          this.model.scale.set(this.cubeSize, this.cubeSize, this.cubeSize);
-        }
-        this.updateSKU();
-      }
-  
-      updateMaterial(part, color) {
-        if (this.materials[part]) {
-          this.materials[part].color.set(color);
-          this.materials[part].needsUpdate = true;
-          this.updateSKU();
-        }
-      }
-  
+
       updateSKU() {
-        // SKU starts with "CUB" + cube size, then concatenates each face's color code.
-        const parts = ['CUB' + this.cubeSize];
-        const colorOrder = ['front', 'back', 'left', 'right', 'top', 'bottom'];
-        colorOrder.forEach(part => {
-          if (this.materials[part]) {
-            const hexColor = this.materials[part].color.getHexString();
-            const foundColor = this.allowedColors.find(c =>
-              c.hex.toLowerCase() === `#${hexColor}`
-            );
-            parts.push(foundColor ? foundColor.code : 'XX');
-          } else {
-            parts.push('XX');
-          }
-        });
-        document.getElementById('sku').textContent = parts.join('');
+        document.getElementById('sku').textContent = `${this.modelType}DCTP${this.size}`;
       }
-  
+
       onWindowResize() {
-        const container = document.getElementById('canvas-container');
-        this.camera.aspect = container.clientWidth / container.clientHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
       }
-  
+
       animate() {
         requestAnimationFrame(this.animate.bind(this));
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
       }
     }
-  
-    window.addEventListener('load', () => {
-      new CubeConfigurator();
-    });
+
+    window.addEventListener('load', () => new GateConfigurator());
   </script>
 </body>
 </html>
