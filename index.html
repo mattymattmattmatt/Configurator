@@ -113,7 +113,7 @@
   <div class="container">
     <h1>Product Configurator</h1>
     <div class="configurator">
-      <!-- Left Column: 3D Model & SKU Display -->
+      <!-- Left Column: 3D Model, Floor & SKU Display -->
       <div class="model-container">
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
@@ -200,6 +200,7 @@
   
     /*********************
      * FULL CONFIGURATION DATASET (304 items)
+     * (Replace the following array with your full dataset if needed)
      *********************/
     const configurations = [
       { "Parent SKU": "GC", "SKU": "GCSGDCTP18WHWH", "Colour": NaN, "Sheet Colour": "Wheat", "Post Track Colour": "Wheat", "Frame Colour": NaN, "Lattice Colour": NaN },
@@ -325,7 +326,7 @@
         this.colorMapping = colorMapping;
         this.currentModelFile = null;
         this.model = null;
-        // We store only materials used for SKU (Sheet and Post Track).
+        // Only store the materials that affect the SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
@@ -343,25 +344,43 @@
           antialias: true,
           alpha: true
         });
+        // Enable shadows.
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  
         this.renderer.setClearColor(0x000000, 0);
   
-        // Change default camera position: Rotate 40° to the left relative to the original (0,3,5).
-        // The computed approximate position is (-3.2, 3, 3.8).
+        // Set camera position (rotated ~40° to the left).
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
+        // Ambient light.
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
   
-        // Primary directional light (from the same side as the camera)
+        // Primary directional light (casting shadows).
         const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight1.position.set(-3.2, 5, 3.8);
+        directionalLight1.castShadow = true;
+        directionalLight1.shadow.mapSize.width = 1024;
+        directionalLight1.shadow.mapSize.height = 1024;
+        directionalLight1.shadow.camera.near = 0.5;
+        directionalLight1.shadow.camera.far = 50;
         this.scene.add(directionalLight1);
-
-        // Second directional light from the opposite side
+  
+        // Second directional light (fill light).
         const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
+  
+        // Add a floor that receives shadows.
+        const floorGeometry = new THREE.PlaneGeometry(50, 50);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        floor.receiveShadow = true;
+        this.scene.add(floor);
   
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
@@ -383,7 +402,7 @@
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
-          // Load model immediately when SKU is selected, with default scale = 1.
+          // Load model immediately when SKU is selected, using default scale 1.
           this.updateConfiguration();
         });
         document.getElementById('dropdown-size').addEventListener('change', () => {
@@ -433,7 +452,6 @@
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
-          // Map identifiers to friendly names.
           if (sku === "SGDCTP") {
             option.textContent = "Single Gate";
           } else if (sku === "DGDCTP") {
@@ -536,7 +554,6 @@
           } else if (modelPrefix === "GCSG") {
             modelFile = "models/GCSG.glb";
           }
-          // Use default scale 1 if no size is selected.
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
           if (this.currentModelFile !== modelFile) {
             this.loadModel(modelFile, scaleValue);
@@ -583,6 +600,7 @@
   
           this.model.traverse((child) => {
             if (child.isMesh && child.material) {
+              child.castShadow = true;
               const name = child.material.name.toLowerCase();
               if (name.includes("accessories")) {
                 child.material.color.set("#808080");
@@ -613,6 +631,7 @@
   
           this.model.traverse((child) => {
             if (child.isMesh && child.material) {
+              child.castShadow = true;
               const name = child.material.name.toLowerCase();
               if (name.includes("accessories")) {
                 child.material.color.set("#808080");
