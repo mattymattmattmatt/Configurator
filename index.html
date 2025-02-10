@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Gate Configurator</title>
+  <title>Product Configurator</title>
   <style>
     :root {
       --primary: #2c3e50;
@@ -10,33 +10,28 @@
       --background: #ecf0f1;
       --text: #2c3e50;
     }
-
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       font-family: 'Segoe UI', system-ui, sans-serif;
     }
-
     body {
       background: var(--background);
       color: var(--text);
       min-height: 100vh;
     }
-
     .container {
       max-width: 1600px;
       margin: 0 auto;
       padding: 2rem;
     }
-
     h1 {
       text-align: center;
       margin-bottom: 1rem;
       font-size: 2rem;
       color: var(--primary);
     }
-
     .configurator {
       display: grid;
       grid-template-columns: 1fr 350px;
@@ -46,29 +41,26 @@
       padding: 2rem;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
-
     .model-container {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
-
     #canvas-container {
       width: 100%;
       height: 700px;
       border-radius: 12px;
       overflow: hidden;
       position: relative;
+      /* CSS gradient background: white at bottom, grey at top */
       background: linear-gradient(to top, #ffffff, #cccccc);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
-
     .controls {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
-
     .control-group {
       background: #fff;
       padding: 1rem;
@@ -76,7 +68,17 @@
       border: 1px solid #eee;
       transition: background-color 0.3s ease;
     }
-
+    .control-group:hover {
+      background-color: #f8f8f8;
+    }
+    .control-header {
+      margin-bottom: 0.5rem;
+    }
+    .control-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
     .sku-display {
       background: var(--primary);
       color: white;
@@ -85,18 +87,14 @@
       font-family: monospace;
       text-align: center;
     }
-
-    select.color-picker,
-    select.model-picker,
-    select.size-picker {
+    select {
       width: 100%;
       padding: 0.5rem;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 0.9rem;
     }
-
-    button#reset-config {
+    button {
       width: 100%;
       padding: 0.5rem;
       font-size: 1rem;
@@ -107,132 +105,363 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
+    button:hover {
+      background: #2980b9;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Gate Configurator</h1>
+    <h1>Product Configurator</h1>
     <div class="configurator">
+      <!-- Left Column: 3D Model & SKU Display -->
       <div class="model-container">
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
         </div>
         <div class="sku-display">
-          SKU: <span id="sku">GCDGDCTP12XX</span>
+          SKU: <span id="sku"></span>
         </div>
       </div>
+      <!-- Right Column: Controls -->
       <div class="controls">
-        <div class="control-group">
-          <span class="control-title">Model Type</span>
-          <select class="model-picker">
-            <option value="GCDG">Double Gate (GCDG)</option>
-            <option value="GCSG">Single Gate (GCSG)</option>
-          </select>
+        <!-- These controls will be generated even though some (Colour, Frame, Lattice) won’t show if they are NaN -->
+        <div class="control-group" id="control-parentsku">
+          <div class="control-header">
+            <span class="control-title">Parent SKU</span>
+            <select id="dropdown-parentsku"></select>
+          </div>
         </div>
-        
-        <div class="control-group">
-          <span class="control-title">Size</span>
-          <select class="size-picker">
-            <option value="12">1.2m</option>
-            <option value="15">1.5m</option>
-            <option value="18">1.8m</option>
-            <option value="21">2.1m</option>
-          </select>
+        <div class="control-group" id="control-sku">
+          <div class="control-header">
+            <span class="control-title">SKU</span>
+            <select id="dropdown-sku"></select>
+          </div>
         </div>
-
-        <div class="control-group">
-          <span class="control-title">Sheet Colour</span>
-          <select class="color-picker" data-part="sheet"></select>
+        <div class="control-group" id="control-size">
+          <div class="control-header">
+            <span class="control-title">Size (m)</span>
+            <select id="dropdown-size"></select>
+          </div>
         </div>
-
-        <div class="control-group">
-          <span class="control-title">Post Track Colour</span>
-          <select class="color-picker" data-part="post_track"></select>
+        <div class="control-group" id="control-sheet">
+          <div class="control-header">
+            <span class="control-title">Sheet Colour</span>
+            <select id="dropdown-sheet"></select>
+          </div>
         </div>
-
+        <div class="control-group" id="control-post">
+          <div class="control-header">
+            <span class="control-title">Post Track Colour</span>
+            <select id="dropdown-post"></select>
+          </div>
+        </div>
+        <!-- In your full set, if Colour, Frame Colour, or Lattice Colour are not applicable (NaN) you simply do not include them in the HTML. -->
         <div class="control-group">
           <button id="reset-config">Reset Configurator</button>
         </div>
       </div>
     </div>
   </div>
-
+  
+  <!-- Three.js, OrbitControls, and GLTFLoader -->
   <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-
+  
   <script>
-    class GateConfigurator {
+    /*********************
+     * DATA SETS
+     *********************/
+    // (For brevity, only one configuration is shown here.
+    // In your actual code, include all configuration objects from your first dataset.)
+    const configurations = [
+      {
+        "Parent SKU": "GC",
+        "SKU": "GCDGDCTP12BWBW",
+        "Colour": NaN,
+        "Sheet Colour": "Banyan Brown",
+        "Post Track Colour": "Banyan Brown",
+        "Frame Colour": NaN,
+        "Lattice Colour": NaN
+      }
+      // ... include all your configuration objects here
+    ];
+    
+    // Colour mapping dataset from your second data block
+    const colorMapping = [
+      { "Colour": "Armour Grey", "Short Code": "AG", "Hex": "#888B8A" },
+      { "Colour": "Banyan Brown", "Short Code": "BW", "Hex": "#6C6153" },
+      { "Colour": "Beige", "Short Code": "BG", "Hex": "#9D8D76" },
+      { "Colour": "Birch", "Short Code": "BI", "Hex": "#B1ADA3" },
+      { "Colour": "Caulfield Green", "Short Code": "CF", "Hex": "#304C3C" },
+      { "Colour": "Cobblestone", "Short Code": "CB", "Hex": "#7F7C78" },
+      { "Colour": "Dark Stone", "Short Code": "DA", "Hex": "#3E434C" },
+      { "Colour": "Driftwood", "Short Code": "DD", "Hex": "#857E73" },
+      { "Colour": "Ebony", "Short Code": "EB", "Hex": "#000000" },
+      { "Colour": "Granite", "Short Code": "GN", "Hex": "#6D6C6E" },
+      { "Colour": "Gull Grey", "Short Code": "GG", "Hex": "#BDBFBA" },
+      { "Colour": "Gun Metal Grey", "Short Code": "GU", "Hex": "#323233" },
+      { "Colour": "Heritage Red", "Short Code": "HR", "Hex": "#5E1D0E" },
+      { "Colour": "Marsh", "Short Code": "MH", "Hex": "#848377" },
+      { "Colour": "Merino", "Short Code": "ME", "Hex": "#CABFA4" },
+      { "Colour": "Mist Green", "Short Code": "MG", "Hex": "#7C846A" },
+      { "Colour": "Moss Vale Sand", "Short Code": "MV", "Hex": "#C5C2AA" },
+      { "Colour": "Mountain Blue", "Short Code": "MB", "Hex": "#364152" },
+      { "Colour": "Off White", "Short Code": "OW", "Hex": "#E4E2D5" },
+      { "Colour": "Primrose", "Short Code": "PR", "Hex": "#E8DBAE" },
+      { "Colour": "Rivergum", "Short Code": "RG", "Hex": "#64715E" },
+      { "Colour": "Slate Grey", "Short Code": "SG", "Hex": "#4B4C46" },
+      { "Colour": "Smooth Cream", "Short Code": "CR", "Hex": "#E9DCB8" },
+      { "Colour": "White", "Short Code": "WI", "Hex": "#FFFFFF" },
+      { "Colour": "Zinc/Al", "Short Code": "AZ", "Hex": "#BDBFBA" },
+      { "Colour": "Green", "Short Code": "GR", "Hex": "#00BF00" }
+    ];
+    
+    /*********************
+     * PRODUCT CONFIGURATOR CLASS
+     *********************/
+    class ProductConfigurator {
       constructor() {
-        this.colors = [
-          { name: "Gull Grey", code: "GG", hex: "#C5C7C4" },
-          { name: "Ebony", code: "EB", hex: "#141414" },
-          { name: "Armour Grey", code: "AG", hex: "#888B8A" }
-        ];
-
-        this.modelType = "GCDG";
-        this.size = "12";
-        this.scene = null;
-        this.camera = null;
-        this.renderer = null;
+        // Store datasets
+        this.configurations = configurations;
+        this.colorMapping = colorMapping;
+        // To keep track of the currently loaded model
+        this.currentModelFile = null;
         this.model = null;
-        this.controls = null;
-
+        // We only need two material slots for this project:
+        this.materials = { sheet: null, postTrack: null };
+    
         this.initThreeJS();
-        this.loadModel();
         this.initUI();
+        this.updateConfiguration(); // Initialize with a default configuration
         this.animate();
       }
-
+    
       initThreeJS() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById("canvas-container").appendChild(this.renderer.domElement);
+        const container = document.getElementById('canvas-container');
+        this.camera = new THREE.PerspectiveCamera(
+          75,
+          container.clientWidth / container.clientHeight,
+          0.1,
+          1000
+        );
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: document.querySelector('#product-canvas'),
+          antialias: true,
+          alpha: true
+        });
+        this.renderer.setClearColor(0x000000, 0);
+    
+        this.camera.position.set(0, 3, 5);
+        this.camera.lookAt(0, 0, 0);
+    
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        this.scene.add(ambientLight);
+    
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        this.scene.add(directionalLight);
+    
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+    
         window.addEventListener('resize', this.onWindowResize.bind(this));
+        this.onWindowResize();
       }
-
-      loadModel() {
-        const loader = new THREE.GLTFLoader();
-        const modelPath = `models/${this.modelType}.glb`;
-
-        loader.load(modelPath, (gltf) => {
-          if (this.model) this.scene.remove(this.model);
-          this.model = gltf.scene;
-          this.scene.add(this.model);
-        }, undefined, (error) => {
-          console.error('Error loading model:', error);
+    
+      initUI() {
+        // Populate dropdowns with unique options extracted from the configurations.
+        this.populateDropdowns();
+    
+        // Add change event listeners for each dropdown.
+        document.getElementById('dropdown-parentsku').addEventListener('change', () => this.updateConfiguration());
+        document.getElementById('dropdown-sku').addEventListener('change', () => this.updateConfiguration());
+        document.getElementById('dropdown-size').addEventListener('change', () => this.updateConfiguration());
+        document.getElementById('dropdown-sheet').addEventListener('change', () => this.updateConfiguration());
+        document.getElementById('dropdown-post').addEventListener('change', () => this.updateConfiguration());
+    
+        // Reset button listener
+        document.getElementById('reset-config').addEventListener('click', () => {
+          this.resetSelections();
         });
       }
-
+    
       populateDropdowns() {
-        document.querySelectorAll(".color-picker").forEach(select => {
-          select.innerHTML = this.colors.map(color => 
-            `<option value="${color.code}" data-hex="${color.hex}">${color.name} (${color.code})</option>`
-          ).join('');
+        // For Parent SKU, use the unique values from the "Parent SKU" field.
+        const uniqueParent = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"]))];
+        this.populateSelect("dropdown-parentsku", uniqueParent);
+    
+        // For SKU dropdown, we extract the substring (positions 2–8) from each full SKU.
+        const uniqueSKU = [...new Set(this.configurations.map(cfg => cfg["SKU"].substring(2,8)))];
+        this.populateSelect("dropdown-sku", uniqueSKU);
+    
+        // For Size, extract the substring (positions 8–10) and display as m (e.g. "12" becomes "1.2m")
+        const uniqueSizeCodes = [...new Set(this.configurations.map(cfg => cfg["SKU"].substring(8,10)))];
+        const sizeOptions = uniqueSizeCodes.map(code => ({ code: code, display: (parseInt(code)/10).toFixed(1) }));
+        this.populateSelect("dropdown-size", sizeOptions, true);
+    
+        // For Sheet Colour
+        const uniqueSheet = [...new Set(this.configurations.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
+        this.populateSelect("dropdown-sheet", uniqueSheet);
+    
+        // For Post Track Colour
+        const uniquePost = [...new Set(this.configurations.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
+        this.populateSelect("dropdown-post", uniquePost);
+    
+        // (If you had values for Colour, Frame Colour, Lattice Colour, you could also populate and show them.)
+      }
+    
+      // Helper function to populate a select element.
+      // If isObject is true, options is expected to be an array of objects {code, display}
+      populateSelect(selectId, options, isObject = false) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = "";
+        options.forEach(opt => {
+          const optionEl = document.createElement("option");
+          if (isObject) {
+            optionEl.value = opt.code;
+            optionEl.textContent = opt.display + "m";
+          } else {
+            optionEl.value = opt;
+            optionEl.textContent = opt;
+          }
+          select.appendChild(optionEl);
         });
       }
-
-      updateSKU() {
-        const sheetCode = document.querySelector('[data-part="sheet"]').value || "XX";
-        const postCode = document.querySelector('[data-part="post_track"]').value || "XX";
-        document.getElementById('sku').textContent = `${this.modelType}DCTP${this.size}${sheetCode}${postCode}`;
+    
+      updateConfiguration() {
+        // Read the current selections.
+        const selectedParent = document.getElementById('dropdown-parentsku').value;
+        const selectedSKU = document.getElementById('dropdown-sku').value;
+        const selectedSizeCode = document.getElementById('dropdown-size').value; // e.g., "12"
+        const selectedSheet = document.getElementById('dropdown-sheet').value;
+        const selectedPost = document.getElementById('dropdown-post').value;
+    
+        // Find a configuration that matches all these selections.
+        const matchingConfigs = this.configurations.filter(cfg => {
+          return cfg["Parent SKU"] === selectedParent &&
+                 cfg["SKU"].substring(2,8) === selectedSKU &&
+                 cfg["SKU"].substring(8,10) === selectedSizeCode &&
+                 cfg["Sheet Colour"] === selectedSheet &&
+                 cfg["Post Track Colour"] === selectedPost;
+        });
+    
+        if(matchingConfigs.length > 0) {
+          const config = matchingConfigs[0];
+          // Update the displayed SKU.
+          document.getElementById('sku').textContent = config["SKU"];
+    
+          // Determine which model file to load based on the first 4 characters of the SKU.
+          const modelFilePrefix = config["SKU"].substring(0,4);
+          let modelFile = "";
+          if(modelFilePrefix === "GCDG") {
+            modelFile = "GCDG.glb";
+          } else if(modelFilePrefix === "GCSG") {
+            modelFile = "GCSG.glb";
+          }
+    
+          // If the model file has changed, load the new model; otherwise just update the material colours.
+          if(this.currentModelFile !== modelFile) {
+            this.loadModel(modelFile, config);
+          } else {
+            this.updateMaterials(config);
+          }
+        } else {
+          console.error("No matching configuration found for the selected options.");
+        }
       }
-
+    
+      loadModel(modelFile, config) {
+        const loader = new THREE.GLTFLoader();
+        loader.load(modelFile, (gltf) => {
+          // Remove the previous model (if any)
+          if(this.model) {
+            this.scene.remove(this.model);
+          }
+          this.model = gltf.scene;
+          // For example, scale the model using the size value.
+          const scaleValue = parseInt(document.getElementById('dropdown-size').value) / 10;
+          this.model.scale.set(scaleValue, scaleValue, scaleValue);
+    
+          this.scene.add(this.model);
+          this.currentModelFile = modelFile;
+    
+          // Identify the two material slots.
+          // Here we assume the model’s materials are named (or contain) "sheet" and "post"
+          this.model.traverse((child) => {
+            if(child.isMesh && child.material) {
+              const matName = child.material.name.toLowerCase();
+              if(matName.includes("sheet")) {
+                this.materials.sheet = child.material;
+              }
+              if(matName.includes("post")) {
+                this.materials.postTrack = child.material;
+              }
+            }
+          });
+    
+          // Now update the material colours
+          this.updateMaterials(config);
+        }, undefined, (error) => {
+          console.error("Error loading model:", error);
+        });
+      }
+    
+      updateMaterials(config) {
+        // Update model scale based on the selected size.
+        const scaleValue = parseInt(document.getElementById('dropdown-size').value) / 10;
+        if(this.model) {
+          this.model.scale.set(scaleValue, scaleValue, scaleValue);
+        }
+    
+        // Update Sheet Colour material.
+        const sheetColorName = config["Sheet Colour"];
+        const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColorName);
+        if(this.materials.sheet && sheetColorObj) {
+          this.materials.sheet.color.set(sheetColorObj["Hex"]);
+          this.materials.sheet.needsUpdate = true;
+        }
+    
+        // Update Post Track Colour material.
+        const postColorName = config["Post Track Colour"];
+        const postColorObj = this.colorMapping.find(c => c["Colour"] === postColorName);
+        if(this.materials.postTrack && postColorObj) {
+          this.materials.postTrack.color.set(postColorObj["Hex"]);
+          this.materials.postTrack.needsUpdate = true;
+        }
+      }
+    
+      resetSelections() {
+        // Reset dropdowns to match the first configuration.
+        const defaultConfig = this.configurations[0];
+        document.getElementById('dropdown-parentsku').value = defaultConfig["Parent SKU"];
+        document.getElementById('dropdown-sku').value = defaultConfig["SKU"].substring(2,8);
+        document.getElementById('dropdown-size').value = defaultConfig["SKU"].substring(8,10);
+        document.getElementById('dropdown-sheet').value = defaultConfig["Sheet Colour"];
+        document.getElementById('dropdown-post').value = defaultConfig["Post Track Colour"];
+        this.updateConfiguration();
+      }
+    
       onWindowResize() {
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        const container = document.getElementById('canvas-container');
+        this.camera.aspect = container.clientWidth / container.clientHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
       }
-
+    
       animate() {
         requestAnimationFrame(this.animate.bind(this));
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
       }
     }
-
-    window.addEventListener('load', () => new GateConfigurator());
+    
+    window.addEventListener('load', () => {
+      new ProductConfigurator();
+    });
   </script>
 </body>
 </html>
