@@ -350,11 +350,11 @@
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
   
         // Set directional light on the same side as the camera.
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight.position.set(-3.2, 5, 3.8);
         this.scene.add(directionalLight);
   
