@@ -165,16 +165,18 @@
     class GateConfigurator {
       constructor() {
         this.colors = [
-          { name: "Armour Grey", code: "AG", hex: "#888B8A" },
-          { name: "Banyan Brown", code: "BW", hex: "#6C6153" },
-          { name: "Beige", code: "BG", hex: "#9D8D76" },
-          { name: "Birch", code: "BI", hex: "#B1ADA3" },
           { name: "Gull Grey", code: "GG", hex: "#C5C7C4" },
-          { name: "Ebony", code: "EB", hex: "#141414" }
+          { name: "Ebony", code: "EB", hex: "#141414" },
+          { name: "Armour Grey", code: "AG", hex: "#888B8A" }
         ];
 
         this.modelType = "GCDG";
         this.size = "12";
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.model = null;
+        this.controls = null;
 
         this.initThreeJS();
         this.loadModel();
@@ -186,17 +188,22 @@
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.renderer.setClearColor(0x000000, 0);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById("canvas-container").appendChild(this.renderer.domElement);
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         window.addEventListener('resize', this.onWindowResize.bind(this));
       }
 
       loadModel() {
         const loader = new THREE.GLTFLoader();
-        loader.load(`models/${this.modelType}.glb`, (gltf) => {
-          this.scene.clear();
+        const modelPath = `models/${this.modelType}.glb`;
+
+        loader.load(modelPath, (gltf) => {
+          if (this.model) this.scene.remove(this.model);
           this.model = gltf.scene;
           this.scene.add(this.model);
+        }, undefined, (error) => {
+          console.error('Error loading model:', error);
         });
       }
 
