@@ -175,19 +175,19 @@
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
   
   <script>
-    // Helper: Returns the short code for a colour name from the colorMapping dataset.
+    // Helper: Given a colour name, return its short code from the colorMapping dataset.
     function getShortCode(colorName) {
       const mapping = colorMapping.find(c => c["Colour"] === colorName);
       return mapping ? mapping["Short Code"] : "";
     }
   
     // Helper: Parse the SKU into its parts.
-    // Expected SKU format:
-    // - Positions 0–1: Parent SKU (e.g. "GC")
-    // - Positions 2–7: Identifier (e.g. "DGDCTP" or "SGDCTP")
-    // - Positions 8–9: Size code (e.g. "12", "15", "18", "21")
-    // - Positions 10–11: Sheet Colour short code
-    // - Positions 12–13: Post Track Colour short code
+    // SKU format (positions):
+    //  0–1: Parent SKU (e.g. "GC")
+    //  2–7: Identifier (e.g. "DGDCTP" or "SGDCTP")
+    //  8–9: Size code (e.g. "12", "15", "18", "21")
+    //  10–11: Sheet Colour short code
+    //  12–13: Post Track Colour short code
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -201,75 +201,19 @@
     /*********************
      * DATA SETS
      *********************/
-    // Sample configuration dataset (replace with your full 304 configurations)
+    // Replace these sample configurations with your full 304-item dataset.
     const configurations = [
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCDGDCTP12BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCDGDCTP15BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCDGDCTP18BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCDGDCTP21BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCSGDCTP12BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCSGDCTP15BWBW",
-        "Colour": NaN,
-        "Sheet Colour": "Banyan Brown",
-        "Post Track Colour": "Banyan Brown",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      },
-      {
-        "Parent SKU": "GC",
-        "SKU": "GCSGDCTP18OWOW",
-        "Colour": NaN,
-        "Sheet Colour": "Off White",
-        "Post Track Colour": "Off White",
-        "Frame Colour": NaN,
-        "Lattice Colour": NaN
-      }
+      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCDGDCTP18BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCDGDCTP21BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCSGDCTP12BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCSGDCTP15BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
+      { "Parent SKU": "GC", "SKU": "GCSGDCTP18OWOW", "Colour": NaN, "Sheet Colour": "Off White", "Post Track Colour": "Off White", "Frame Colour": NaN, "Lattice Colour": NaN }
       // ... include all 304 configurations here
     ];
   
-    // Colour mapping dataset
+    // Colour mapping dataset.
     const colorMapping = [
       { "Colour": "Armour Grey", "Short Code": "AG", "Hex": "#888B8A" },
       { "Colour": "Banyan Brown", "Short Code": "BW", "Hex": "#6C6153" },
@@ -313,7 +257,7 @@
   
         this.initThreeJS();
         this.initUI();
-        // Immediately update the configuration on load (using placeholders if needed)
+        // Update configuration on load (using placeholders if necessary)
         this.updateConfiguration();
         this.animate();
       }
@@ -415,7 +359,10 @@
         });
       }
   
+      // Update size options by filtering the dataset based on Parent and SKU.
       updateSizeOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
         const select = document.getElementById('dropdown-size');
         select.innerHTML = "";
         const placeholder = document.createElement('option');
@@ -423,13 +370,16 @@
         placeholder.textContent = "Select Size";
         select.appendChild(placeholder);
   
-        // Instead of filtering by configurations (which might be incomplete),
-        // we use a fixed array of size codes so that each SKU always offers 4 sizes.
-        const fixedSizes = ["12", "15", "18", "21"];
-        fixedSizes.forEach(sizeCode => {
+        const filtered = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
+        });
+        const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
+        uniqueSizes.sort(); // e.g. "12", "15", "18", "21"
+        uniqueSizes.forEach(sizeCode => {
           const option = document.createElement('option');
           option.value = sizeCode;
-          option.textContent = (parseInt(sizeCode)/10).toFixed(1) + "m";
+          option.textContent = (parseInt(sizeCode) / 10).toFixed(1) + "m";
           select.appendChild(option);
         });
       }
@@ -439,21 +389,23 @@
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
   
+        // For Sheet Colour
         const sheetSelect = document.getElementById('dropdown-sheet');
         sheetSelect.innerHTML = "";
-        let sheetPlaceholder = document.createElement('option');
+        const sheetPlaceholder = document.createElement('option');
         sheetPlaceholder.value = "";
         sheetPlaceholder.textContent = "Select Sheet Colour";
         sheetSelect.appendChild(sheetPlaceholder);
   
+        // For Post Track Colour
         const postSelect = document.getElementById('dropdown-post');
         postSelect.innerHTML = "";
-        let postPlaceholder = document.createElement('option');
+        const postPlaceholder = document.createElement('option');
         postPlaceholder.value = "";
         postPlaceholder.textContent = "Select Post Colour";
         postSelect.appendChild(postPlaceholder);
   
-        // Filter configurations based on parent, SKU, and size.
+        // Filter configurations based on Parent, SKU, and Size.
         const filtered = this.configurations.filter(cfg => {
           const parsed = parseSKU(cfg["SKU"]);
           return cfg["Parent SKU"].trim() === parent &&
@@ -478,7 +430,7 @@
         });
       }
   
-      // updateConfiguration constructs the SKU string and updates the model/materials live.
+      // updateConfiguration() builds the full SKU string from the current selections and updates the model/materials.
       updateConfiguration() {
         const parent = document.getElementById('dropdown-parent').value;
         const sku = document.getElementById('dropdown-sku').value;
@@ -486,21 +438,19 @@
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        // Use X's if a value is not yet selected.
+        // Use X's for parts not selected.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
         const postPart = postColor ? (getShortCode(postColor) || "XX") : "XX";
   
-        // Construct the full SKU.
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // Update the model if an SKU is selected.
+        // If SKU and Size are selected, update the model.
         if (sku && sizeCode) {
-          // Determine model file from the first four characters.
-          // Here we assume the model file is chosen based on the first 4 characters:
-          // For example, if parent is "GC" and sku is "DGDCTP", then first four are "GCDG".
+          // Determine the model file from the first four characters.
+          // Example logic: If Parent is "GC" and SKU identifier is "DGDCTP", then first 4 become "GCDG"
           const modelPrefix = parent + sku.substring(0,2);
           let modelFile = "";
           if (modelPrefix === "GCDG") {
@@ -515,7 +465,7 @@
             this.model.scale.set(scaleValue, scaleValue, scaleValue);
           }
         } else {
-          // If SKU or Size is not selected, load/update default model.
+          // If SKU or Size not selected, load/update the default model.
           if (!this.model) {
             this.loadDefaultModel();
           }
@@ -531,6 +481,7 @@
           }
           this.materials.sheet.needsUpdate = true;
         }
+  
         if (this.materials.postTrack) {
           if (postColor) {
             const postColorObj = this.colorMapping.find(c => c["Colour"] === postColor);
@@ -543,7 +494,6 @@
       }
   
       loadDefaultModel() {
-        // Load a default model (here, models/GCDG.glb)
         const loader = new THREE.GLTFLoader();
         loader.load("models/GCDG.glb", (gltf) => {
           if (this.model) {
@@ -593,7 +543,7 @@
               }
             }
           });
-          // After loading, immediately update the model's appearance.
+          // After loading, update the configuration to apply colours.
           this.updateConfiguration();
         }, undefined, (error) => {
           console.error("Error loading model:", error);
