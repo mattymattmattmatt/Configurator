@@ -164,19 +164,17 @@
   <script>
     class GateConfigurator {
       constructor() {
-        this.allowedColors = [
+        this.colors = [
           { name: "Armour Grey", code: "AG", hex: "#888B8A" },
           { name: "Banyan Brown", code: "BW", hex: "#6C6153" },
-          { name: "Beige", code: "BG", hex: "#9D8D76" }
+          { name: "Beige", code: "BG", hex: "#9D8D76" },
+          { name: "Birch", code: "BI", hex: "#B1ADA3" },
+          { name: "Gull Grey", code: "GG", hex: "#C5C7C4" },
+          { name: "Ebony", code: "EB", hex: "#141414" }
         ];
 
         this.modelType = "GCDG";
         this.size = "12";
-
-        this.materials = {
-          sheet: null,
-          post_track: null
-        };
 
         this.initThreeJS();
         this.loadModel();
@@ -196,14 +194,24 @@
       loadModel() {
         const loader = new THREE.GLTFLoader();
         loader.load(`models/${this.modelType}.glb`, (gltf) => {
+          this.scene.clear();
           this.model = gltf.scene;
-          this.model.scale.set(this.size / 10, this.size / 10, this.size / 10);
           this.scene.add(this.model);
         });
       }
 
+      populateDropdowns() {
+        document.querySelectorAll(".color-picker").forEach(select => {
+          select.innerHTML = this.colors.map(color => 
+            `<option value="${color.code}" data-hex="${color.hex}">${color.name} (${color.code})</option>`
+          ).join('');
+        });
+      }
+
       updateSKU() {
-        document.getElementById('sku').textContent = `${this.modelType}DCTP${this.size}`;
+        const sheetCode = document.querySelector('[data-part="sheet"]').value || "XX";
+        const postCode = document.querySelector('[data-part="post_track"]').value || "XX";
+        document.getElementById('sku').textContent = `${this.modelType}DCTP${this.size}${sheetCode}${postCode}`;
       }
 
       onWindowResize() {
