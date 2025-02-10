@@ -177,17 +177,11 @@
   <script>
     // Helper: Given a colour name, return its short code.
     function getShortCode(colorName) {
-      const mapping = colorMapping.find(c => c["Colour"] === colorName);
+      const mapping = window.productData.colorMapping.find(c => c["Colour"] === colorName);
       return mapping ? mapping["Short Code"] : "";
     }
   
     // Helper: Parse the SKU into its parts.
-    // Format:
-    // 0–1: Parent SKU (e.g. "GC")
-    // 2–7: Identifier (e.g. "DGDCTP" or "SGDCTP")
-    // 8–9: Size code (e.g. "12", "15", "18", "21")
-    // 10–11: Sheet Colour short code
-    // 12–13: Post Track Colour short code
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -198,141 +192,40 @@
       };
     }
   
-    /*********************
-     * FULL CONFIGURATION DATASET (304 items)
-     * (Replace the following array with your full dataset if needed)
-     *********************/
-    const configurations = [
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18WHWH", "Colour": NaN, "Sheet Colour": "Wheat", "Post Track Colour": "Wheat", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP18BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP21BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP12BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP15BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP21BWBW", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Banyan Brown", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP18BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP21BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP12BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP15BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP21BGBG", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Beige", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP18BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP21BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP12BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP15BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP21BIBI", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Birch", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP18CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP21CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP12CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP15CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP21CFCF", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Caulfield Green", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP18DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP21DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP12DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP15DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP18DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCSGDCTP21DADA", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Dark Stone", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BGEB", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BIEB", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12BWEB", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12CFEB", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12DAEB", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12GGEB", "Colour": NaN, "Sheet Colour": "Gull Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12GNEB", "Colour": NaN, "Sheet Colour": "Granite", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12GUEB", "Colour": NaN, "Sheet Colour": "Gun Metal Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12HREB", "Colour": NaN, "Sheet Colour": "Heritage Red", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12MBEB", "Colour": NaN, "Sheet Colour": "Mountain Blue", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12MEEB", "Colour": NaN, "Sheet Colour": "Merino", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12MGEB", "Colour": NaN, "Sheet Colour": "Mist Green", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12MHEB", "Colour": NaN, "Sheet Colour": "Marsh", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12MVEB", "Colour": NaN, "Sheet Colour": "Moss Vale Sand", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12OWEB", "Colour": NaN, "Sheet Colour": "Off White", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12PREB", "Colour": NaN, "Sheet Colour": "Primrose", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12RGEB", "Colour": NaN, "Sheet Colour": "Rivergum", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12SGEB", "Colour": NaN, "Sheet Colour": "Slate Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP12WHEB", "Colour": NaN, "Sheet Colour": "Wheat", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BGEB", "Colour": NaN, "Sheet Colour": "Beige", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BIEB", "Colour": NaN, "Sheet Colour": "Birch", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15BWEB", "Colour": NaN, "Sheet Colour": "Banyan Brown", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15CFEB", "Colour": NaN, "Sheet Colour": "Caulfield Green", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15DAEB", "Colour": NaN, "Sheet Colour": "Dark Stone", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15GGEB", "Colour": NaN, "Sheet Colour": "Gull Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15GNEB", "Colour": NaN, "Sheet Colour": "Granite", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15GUEB", "Colour": NaN, "Sheet Colour": "Gun Metal Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15HREB", "Colour": NaN, "Sheet Colour": "Heritage Red", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15MBEB", "Colour": NaN, "Sheet Colour": "Mountain Blue", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15MEEB", "Colour": NaN, "Sheet Colour": "Merino", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15MGEB", "Colour": NaN, "Sheet Colour": "Mist Green", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15MHEB", "Colour": NaN, "Sheet Colour": "Marsh", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15MVEB", "Colour": NaN, "Sheet Colour": "Moss Vale Sand", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15OWEB", "Colour": NaN, "Sheet Colour": "Off White", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15PREB", "Colour": NaN, "Sheet Colour": "Primrose", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15RGEB", "Colour": NaN, "Sheet Colour": "Rivergum", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15SGEB", "Colour": NaN, "Sheet Colour": "Slate Grey", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN },
-      { "Parent SKU": "GC", "SKU": "GCDGDCTP15WHEB", "Colour": NaN, "Sheet Colour": "Wheat", "Post Track Colour": "Ebony", "Frame Colour": NaN, "Lattice Colour": NaN }
-    ];
-  
-    /*********************
-     * COLOR MAPPING DATASET (with Wheat added)
-     *********************/
-    const colorMapping = [
-      { "Colour": "Armour Grey", "Short Code": "AG", "Hex": "#888B8A" },
-      { "Colour": "Banyan Brown", "Short Code": "BW", "Hex": "#6C6153" },
-      { "Colour": "Beige", "Short Code": "BG", "Hex": "#9D8D76" },
-      { "Colour": "Birch", "Short Code": "BI", "Hex": "#B1ADA3" },
-      { "Colour": "Caulfield Green", "Short Code": "CF", "Hex": "#304C3C" },
-      { "Colour": "Cobblestone", "Short Code": "CB", "Hex": "#7F7C78" },
-      { "Colour": "Dark Stone", "Short Code": "DA", "Hex": "#3E434C" },
-      { "Colour": "Driftwood", "Short Code": "DD", "Hex": "#857E73" },
-      { "Colour": "Ebony", "Short Code": "EB", "Hex": "#000000" },
-      { "Colour": "Granite", "Short Code": "GN", "Hex": "#6D6C6E" },
-      { "Colour": "Gull Grey", "Short Code": "GG", "Hex": "#BDBFBA" },
-      { "Colour": "Gun Metal Grey", "Short Code": "GU", "Hex": "#323233" },
-      { "Colour": "Heritage Red", "Short Code": "HR", "Hex": "#5E1D0E" },
-      { "Colour": "Marsh", "Short Code": "MH", "Hex": "#848377" },
-      { "Colour": "Merino", "Short Code": "ME", "Hex": "#CABFA4" },
-      { "Colour": "Mist Green", "Short Code": "MG", "Hex": "#7C846A" },
-      { "Colour": "Moss Vale Sand", "Short Code": "MV", "Hex": "#C5C2AA" },
-      { "Colour": "Mountain Blue", "Short Code": "MB", "Hex": "#364152" },
-      { "Colour": "Off White", "Short Code": "OW", "Hex": "#E4E2D5" },
-      { "Colour": "Primrose", "Short Code": "PR", "Hex": "#E8DBAE" },
-      { "Colour": "Rivergum", "Short Code": "RG", "Hex": "#64715E" },
-      { "Colour": "Slate Grey", "Short Code": "SG", "Hex": "#4B4C46" },
-      { "Colour": "Smooth Cream", "Short Code": "CR", "Hex": "#E9DCB8" },
-      { "Colour": "White", "Short Code": "WI", "Hex": "#FFFFFF" },
-      { "Colour": "Zinc/Al", "Short Code": "AZ", "Hex": "#BDBFBA" },
-      { "Colour": "Green", "Short Code": "GR", "Hex": "#00BF00" },
-      { "Colour": "Wheat", "Short Code": "WH", "Hex": "#F5DEB3" }
-    ];
-  
-    /*********************
-     * PRODUCT CONFIGURATOR CLASS
-     *********************/
     class ProductConfigurator {
       constructor() {
-        this.configurations = configurations;
-        this.colorMapping = colorMapping;
+        // These will be set after the data loads.
+        this.configurations = [];
+        this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
-        // Only store the materials that affect the SKU (Sheet and Post Track).
+        // Materials used in SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
-        this.initUI();
-        this.updateConfiguration();
-        this.animate();
+  
+        // Load dataset from external file and then initialize UI and update configuration.
+        this.loadData().then(() => {
+          this.initUI();
+          this.updateConfiguration();
+          this.animate();
+        });
+      }
+  
+      async loadData() {
+        try {
+          const response = await fetch('data.json');
+          const data = await response.json();
+          this.configurations = data.configurations;
+          this.colorMapping = data.colorMapping;
+          // Also store in a global variable for the helper functions.
+          window.productData = {
+            configurations: this.configurations,
+            colorMapping: this.colorMapping
+          };
+        } catch (error) {
+          console.error("Error loading dataset:", error);
+        }
       }
   
       initThreeJS() {
@@ -373,7 +266,7 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Add a floor that receives shadows.
+        // Add a floor (plane) that receives shadows.
         const floorGeometry = new THREE.PlaneGeometry(50, 50);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -402,7 +295,6 @@
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
-          // Load model immediately when SKU is selected, using default scale 1.
           this.updateConfiguration();
         });
         document.getElementById('dropdown-size').addEventListener('change', () => {
