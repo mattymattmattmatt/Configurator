@@ -182,12 +182,12 @@
     }
   
     // Helper: Parse the SKU into its parts.
-    // SKU format:
-    //  0–1: Parent SKU (e.g. "GC")
-    //  2–7: Identifier (e.g. "DGDCTP" or "SGDCTP")
-    //  8–9: Size code (e.g. "12", "15", "18", "21")
-    //  10–11: Sheet Colour short code
-    //  12–13: Post Track Colour short code
+    // Format:
+    // 0–1: Parent SKU (e.g. "GC")
+    // 2–7: Identifier (e.g. "DGDCTP" or "SGDCTP")
+    // 8–9: Size code (e.g. "12", "15", "18", "21")
+    // 10–11: Sheet Colour short code
+    // 12–13: Post Track Colour short code
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -325,12 +325,11 @@
         this.colorMapping = colorMapping;
         this.currentModelFile = null;
         this.model = null;
-        // We will store only the materials that affect SKU (Sheet and Post Track).
+        // We store only the materials that affect the SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
         this.initUI();
-        // Immediately update the configuration (placeholders will be used if selections are missing)
         this.updateConfiguration();
         this.animate();
       }
@@ -376,7 +375,7 @@
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
-          // As soon as a SKU is selected, load that model at default scale (1) if no size is yet selected.
+          // Load model as soon as SKU is selected, using default scale 1.
           this.updateConfiguration();
         });
         document.getElementById('dropdown-size').addEventListener('change', () => {
@@ -403,7 +402,6 @@
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
-        // In our dataset, Parent SKU is always "GC".
         const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
         uniqueParents.forEach(parent => {
           const option = document.createElement('option');
@@ -417,18 +415,28 @@
         const parent = document.getElementById('dropdown-parent').value;
         const select = document.getElementById('dropdown-sku');
         select.innerHTML = "";
+  
+        // Placeholder option.
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
         const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        // Extract the identifier (positions 2–8)
+        // Extract unique SKU identifiers from positions 2–8.
         const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
+  
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
-          option.textContent = sku;
+          // Map SKU identifiers to display names.
+          if (sku === "SGDCTP") {
+            option.textContent = "Single Gate";
+          } else if (sku === "DGDCTP") {
+            option.textContent = "Double Gate";
+          } else {
+            option.textContent = sku;
+          }
           select.appendChild(option);
         });
       }
@@ -438,6 +446,7 @@
         const sku = document.getElementById('dropdown-sku').value;
         const select = document.getElementById('dropdown-size');
         select.innerHTML = "";
+  
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "Select Size";
@@ -447,8 +456,9 @@
           const parsed = parseSKU(cfg["SKU"]);
           return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
         });
+  
         const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
-        uniqueSizes.sort(); // e.g., "12", "15", "18", "21"
+        uniqueSizes.sort();
         uniqueSizes.forEach(sizeCode => {
           const option = document.createElement('option');
           option.value = sizeCode;
@@ -462,7 +472,7 @@
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
   
-        // For Sheet Colour
+        // Sheet Colour dropdown.
         const sheetSelect = document.getElementById('dropdown-sheet');
         sheetSelect.innerHTML = "";
         const sheetPlaceholder = document.createElement('option');
@@ -470,7 +480,7 @@
         sheetPlaceholder.textContent = "Select Sheet Colour";
         sheetSelect.appendChild(sheetPlaceholder);
   
-        // For Post Track Colour
+        // Post Track Colour dropdown.
         const postSelect = document.getElementById('dropdown-post');
         postSelect.innerHTML = "";
         const postPlaceholder = document.createElement('option');
@@ -502,7 +512,6 @@
         });
       }
   
-      // updateConfiguration() builds the full SKU string and updates the model/material colours.
       updateConfiguration() {
         const parent = document.getElementById('dropdown-parent').value;
         const sku = document.getElementById('dropdown-sku').value;
@@ -510,7 +519,6 @@
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        // Use X's if a value is not yet selected.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
@@ -519,7 +527,7 @@
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // If a SKU is selected, load its model immediately.
+        // Load model as soon as SKU is selected.
         if (sku) {
           const modelPrefix = parent + sku.substring(0,2);
           let modelFile = "";
@@ -528,7 +536,7 @@
           } else if (modelPrefix === "GCSG") {
             modelFile = "models/GCSG.glb";
           }
-          // If size is not yet selected, use default scale 1.
+          // If size is not selected, use default scale 1.
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
           if (this.currentModelFile !== modelFile) {
             this.loadModel(modelFile, scaleValue);
@@ -541,7 +549,7 @@
           }
         }
   
-        // Update material colours.
+        // Update material colours for Sheet and Post Track.
         if (this.materials.sheet) {
           if (sheetColor) {
             const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
@@ -563,9 +571,6 @@
         }
       }
   
-      // In both loadDefaultModel() and loadModel(), we traverse the model.
-      // We now check if a material's name contains "accessories". If so,
-      // we set it to grey (#808080) and do not store it.
       loadDefaultModel() {
         const loader = new THREE.GLTFLoader();
         loader.load("models/GCDG.glb", (gltf) => {
@@ -581,7 +586,6 @@
             if (child.isMesh && child.material) {
               const name = child.material.name.toLowerCase();
               if (name.includes("accessories")) {
-                // Set accessories to grey.
                 child.material.color.set("#808080");
                 child.material.needsUpdate = true;
               } else if (name.includes("sheet")) {
@@ -612,7 +616,6 @@
             if (child.isMesh && child.material) {
               const name = child.material.name.toLowerCase();
               if (name.includes("accessories")) {
-                // Always set Accessories to grey.
                 child.material.color.set("#808080");
                 child.material.needsUpdate = true;
               } else if (name.includes("sheet")) {
@@ -622,7 +625,6 @@
               }
             }
           });
-          // After loading, update the configuration (to reapply colours)
           this.updateConfiguration();
         }, undefined, (error) => {
           console.error("Error loading model:", error);
