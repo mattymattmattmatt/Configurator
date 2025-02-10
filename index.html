@@ -52,7 +52,6 @@
       border-radius: 12px;
       overflow: hidden;
       position: relative;
-      /* CSS gradient background: white at bottom, grey at top */
       background: linear-gradient(to top, #ffffff, #cccccc);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
@@ -125,7 +124,7 @@
       </div>
       <!-- Right Column: Controls -->
       <div class="controls">
-        <!-- These controls will be generated even though some (Colour, Frame, Lattice) won’t show if they are NaN -->
+        <!-- Controls for Parent SKU, SKU, Size, Sheet Colour, and Post Track Colour -->
         <div class="control-group" id="control-parentsku">
           <div class="control-header">
             <span class="control-title">Parent SKU</span>
@@ -156,7 +155,6 @@
             <select id="dropdown-post"></select>
           </div>
         </div>
-        <!-- In your full set, if Colour, Frame Colour, or Lattice Colour are not applicable (NaN) you simply do not include them in the HTML. -->
         <div class="control-group">
           <button id="reset-config">Reset Configurator</button>
         </div>
@@ -294,7 +292,7 @@
         const uniqueParent = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"]))];
         this.populateSelect("dropdown-parentsku", uniqueParent);
     
-        // For SKU dropdown, we extract the substring (positions 2–8) from each full SKU.
+        // For SKU dropdown, extract the substring (positions 2–8) from each full SKU.
         const uniqueSKU = [...new Set(this.configurations.map(cfg => cfg["SKU"].substring(2,8)))];
         this.populateSelect("dropdown-sku", uniqueSKU);
     
@@ -310,8 +308,6 @@
         // For Post Track Colour
         const uniquePost = [...new Set(this.configurations.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
         this.populateSelect("dropdown-post", uniquePost);
-    
-        // (If you had values for Colour, Frame Colour, Lattice Colour, you could also populate and show them.)
       }
     
       // Helper function to populate a select element.
@@ -358,9 +354,9 @@
           const modelFilePrefix = config["SKU"].substring(0,4);
           let modelFile = "";
           if(modelFilePrefix === "GCDG") {
-            modelFile = "GCDG.glb";
+            modelFile = "models/GCDG.glb";
           } else if(modelFilePrefix === "GCSG") {
-            modelFile = "GCSG.glb";
+            modelFile = "models/GCSG.glb";
           }
     
           // If the model file has changed, load the new model; otherwise just update the material colours.
@@ -382,7 +378,7 @@
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // For example, scale the model using the size value.
+          // Scale the model using the size value.
           const scaleValue = parseInt(document.getElementById('dropdown-size').value) / 10;
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
     
@@ -390,7 +386,7 @@
           this.currentModelFile = modelFile;
     
           // Identify the two material slots.
-          // Here we assume the model’s materials are named (or contain) "sheet" and "post"
+          // Here we assume the model’s materials are named (or contain) "sheet" and "post" respectively.
           this.model.traverse((child) => {
             if(child.isMesh && child.material) {
               const matName = child.material.name.toLowerCase();
@@ -403,7 +399,7 @@
             }
           });
     
-          // Now update the material colours
+          // Now update the material colours.
           this.updateMaterials(config);
         }, undefined, (error) => {
           console.error("Error loading model:", error);
