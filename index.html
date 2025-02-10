@@ -175,7 +175,7 @@
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
   
   <script>
-    // Helper: Given a colour name, return its short code from the colorMapping dataset.
+    // Helper: Given a colour name, return its short code.
     function getShortCode(colorName) {
       const mapping = colorMapping.find(c => c["Colour"] === colorName);
       return mapping ? mapping["Short Code"] : "";
@@ -325,7 +325,7 @@
         this.colorMapping = colorMapping;
         this.currentModelFile = null;
         this.model = null;
-        // We store only the materials that affect the SKU (Sheet and Post Track).
+        // We store only materials used for SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
@@ -345,14 +345,17 @@
         });
         this.renderer.setClearColor(0x000000, 0);
   
-        this.camera.position.set(0, 3, 5);
+        // Change default camera position: Rotate 40° to the left relative to the original (0,3,5).
+        // The computed approximate position is (-3.2, 3, 3.8).
+        this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
   
+        // Set directional light on the same side as the camera.
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 5, 5);
+        directionalLight.position.set(-3.2, 5, 3.8);
         this.scene.add(directionalLight);
   
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
@@ -375,7 +378,7 @@
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
-          // Load model as soon as SKU is selected, using default scale 1.
+          // Load model immediately when SKU is selected, with default scale = 1.
           this.updateConfiguration();
         });
         document.getElementById('dropdown-size').addEventListener('change', () => {
@@ -393,7 +396,6 @@
           this.resetSelections();
         });
   
-        // Initialize cascading dropdowns.
         this.updateSKUOptions();
         this.updateSizeOptions();
         this.updateColorOptions();
@@ -416,20 +418,17 @@
         const select = document.getElementById('dropdown-sku');
         select.innerHTML = "";
   
-        // Placeholder option.
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
         const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        // Extract unique SKU identifiers from positions 2–8.
         const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
-  
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
-          // Map SKU identifiers to display names.
+          // Map identifiers to friendly names.
           if (sku === "SGDCTP") {
             option.textContent = "Single Gate";
           } else if (sku === "DGDCTP") {
@@ -456,7 +455,6 @@
           const parsed = parseSKU(cfg["SKU"]);
           return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
         });
-  
         const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
         uniqueSizes.sort();
         uniqueSizes.forEach(sizeCode => {
@@ -472,7 +470,6 @@
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
   
-        // Sheet Colour dropdown.
         const sheetSelect = document.getElementById('dropdown-sheet');
         sheetSelect.innerHTML = "";
         const sheetPlaceholder = document.createElement('option');
@@ -480,7 +477,6 @@
         sheetPlaceholder.textContent = "Select Sheet Colour";
         sheetSelect.appendChild(sheetPlaceholder);
   
-        // Post Track Colour dropdown.
         const postSelect = document.getElementById('dropdown-post');
         postSelect.innerHTML = "";
         const postPlaceholder = document.createElement('option');
@@ -527,7 +523,6 @@
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // Load model as soon as SKU is selected.
         if (sku) {
           const modelPrefix = parent + sku.substring(0,2);
           let modelFile = "";
@@ -536,7 +531,7 @@
           } else if (modelPrefix === "GCSG") {
             modelFile = "models/GCSG.glb";
           }
-          // If size is not selected, use default scale 1.
+          // Use default scale 1 if no size is selected.
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
           if (this.currentModelFile !== modelFile) {
             this.loadModel(modelFile, scaleValue);
@@ -549,7 +544,6 @@
           }
         }
   
-        // Update material colours for Sheet and Post Track.
         if (this.materials.sheet) {
           if (sheetColor) {
             const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
