@@ -194,17 +194,17 @@
   
     class ProductConfigurator {
       constructor() {
-        // These will be set after the data loads.
+        // These will be set after data loads.
         this.configurations = [];
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
-        // Materials used in SKU (Sheet and Post Track).
+        // Only store the materials affecting the SKU.
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
   
-        // Load dataset from external file and then initialize UI and update configuration.
+        // Load data from external file and then initialize UI.
         this.loadData().then(() => {
           this.initUI();
           this.updateConfiguration();
@@ -218,7 +218,7 @@
           const data = await response.json();
           this.configurations = data.configurations;
           this.colorMapping = data.colorMapping;
-          // Also store in a global variable for the helper functions.
+          // Also store in a global variable for helper functions.
           window.productData = {
             configurations: this.configurations,
             colorMapping: this.colorMapping
@@ -266,8 +266,8 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Add a floor (plane) that receives shadows.
-        const floorGeometry = new THREE.PlaneGeometry(50, 50);
+        // Add a floor: Use a circle geometry with a 2.5m radius (5m diameter).
+        const floorGeometry = new THREE.CircleGeometry(2.5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
