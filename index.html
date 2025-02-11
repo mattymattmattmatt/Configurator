@@ -182,12 +182,6 @@
     }
   
     // Helper: Parse the SKU into its parts.
-    // Format: 
-    // - Characters 0-1: Parent SKU (e.g., "GC")
-    // - Characters 2-7: Identifier (e.g., "DGDCTP" or "SGDCTP")
-    // - Characters 8-9: Size code (e.g., "12", "15", "18", "21")
-    // - Characters 10-11: Sheet Colour short code
-    // - Characters 12-13: Post Track Colour short code
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -210,7 +204,7 @@
   
         this.initThreeJS();
   
-        // Load external dataset and then initialize UI.
+        // Load external dataset and then initialize the UI.
         this.loadData().then(() => {
           this.initUI();
           this.updateConfiguration();
@@ -221,23 +215,34 @@
       async loadData() {
         try {
           const response = await fetch('data.json');
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
           const data = await response.json();
           this.configurations = data.configurations;
           this.colorMapping = data.colorMapping;
-          // Also store in a global variable for helper functions.
-          window.productData = {
-            configurations: this.configurations,
-            colorMapping: this.colorMapping
-          };
         } catch (error) {
           console.error("Error loading dataset:", error);
+          // Fallback: If data cannot be loaded, use empty arrays.
+          this.configurations = [];
+          this.colorMapping = [];
         }
+        // Make the data available globally.
+        window.productData = {
+          configurations: this.configurations,
+          colorMapping: this.colorMapping
+        };
       }
   
       initThreeJS() {
         this.scene = new THREE.Scene();
         const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(
+          75,
+          container.clientWidth / container.clientHeight,
+          0.1,
+          1000
+        );
         this.renderer = new THREE.WebGLRenderer({
           canvas: document.querySelector('#product-canvas'),
           antialias: true,
@@ -272,7 +277,8 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Add a floor: a circular mesh with a 5m radius (10m diameter) that is one-sided.
+        // Add a floor: a circular mesh with a 5m radius (10m diameter)
+        // Set the material to render only the front side so it is transparent when viewed from below.
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -292,10 +298,56 @@
         this.onWindowResize();
       }
   
-      // Updated to include the parent only if any available model’s filename starts with the Parent SKU.
+      initUI() {
+        this.populateParentDropdown();
+  
+        document.getElementById('dropdown-parent').addEventListener('change', () => {
+          this.updateSKUOptions();
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sku').addEventListener('change', () => {
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-size').addEventListener('change', () => {
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sheet').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-post').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+  
+        document.getElementById('reset-config').addEventListener('click', () => {
+          this.resetSelections();
+        });
+  
+        this.updateSKUOptions();
+        this.updateSizeOptions();
+        this.updateColorOptions();
+      }
+  
+      // Populate the Parent SKU dropdown. Only include a parent if there is at least one configuration
+      // that would load a valid model file. In our case, since both available model files (GCDG.glb and
+      // GCSG.glb) start with "GC", if a configuration’s Parent SKU is "GC" then it is valid.
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
+  
+        // If no configurations were loaded (e.g. due to a 404), fall back to "GC".
+        if (this.configurations.length === 0) {
+          const defaultOption = document.createElement('option');
+          defaultOption.value = "GC";
+          defaultOption.textContent = "GC";
+          select.appendChild(defaultOption);
+          return;
+        }
+  
         const availableModels = ["GCDG", "GCSG"];
         const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))]
           .filter(parent => {
@@ -534,7 +586,7 @@
       }
   
       resetSelections() {
-        document.getElementById('dropdown-parent').value = this.configurations[0]["Parent SKU"].trim();
+        document.getElementById('dropdown-parent').value = this.configurations.length > 0 ? this.configurations[0]["Parent SKU"].trim() : "GC";
         this.updateSKUOptions();
         document.getElementById('dropdown-sku').value = "";
         this.updateSizeOptions();
