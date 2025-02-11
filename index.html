@@ -199,12 +199,12 @@
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
-        // Only store the materials used for SKU (Sheet and Post Track).
+        // Store only the materials used for SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
   
-        // Load external dataset and then initialize UI.
+        // Load external dataset then initialize UI.
         this.loadData().then(() => {
           this.initUI();
           this.updateConfiguration();
@@ -218,7 +218,7 @@
           const data = await response.json();
           this.configurations = data.configurations;
           this.colorMapping = data.colorMapping;
-          // Also store in a global variable for the helper functions.
+          // Also store in a global variable for helper functions.
           window.productData = {
             configurations: this.configurations,
             colorMapping: this.colorMapping
@@ -228,102 +228,27 @@
         }
       }
   
-      initThreeJS() {
-        this.scene = new THREE.Scene();
-        const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({
-          canvas: document.querySelector('#product-canvas'),
-          antialias: true,
-          alpha: true
-        });
-        // Enable shadows.
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  
-        this.renderer.setClearColor(0x000000, 0);
-  
-        // Set camera position (rotated ~40° to the left).
-        this.camera.position.set(-3.2, 3, 3.8);
-        this.camera.lookAt(0, 0, 0);
-  
-        // Ambient light.
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambientLight);
-  
-        // Primary directional light (casting shadows).
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight1.position.set(-3.2, 5, 3.8);
-        directionalLight1.castShadow = true;
-        directionalLight1.shadow.mapSize.width = 1024;
-        directionalLight1.shadow.mapSize.height = 1024;
-        directionalLight1.shadow.camera.near = 0.5;
-        directionalLight1.shadow.camera.far = 50;
-        this.scene.add(directionalLight1);
-  
-        // Second directional light (fill light).
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight2.position.set(3.2, 5, -3.8);
-        this.scene.add(directionalLight2);
-  
-        // Add a floor: a circular mesh with a radius of 2.5 (5m diameter) that is one-sided.
-        const floorGeometry = new THREE.CircleGeometry(7.5, 32);
-        const floorMaterial = new THREE.MeshStandardMaterial({
-          color: 0x808080,
-          side: THREE.FrontSide  // Only render the front face.
-        });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0;
-        floor.receiveShadow = true;
-        this.scene.add(floor);
-  
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-  
-        window.addEventListener('resize', this.onWindowResize.bind(this));
-        this.onWindowResize();
-      }
-  
-      initUI() {
-        this.populateParentDropdown();
-  
-        document.getElementById('dropdown-parent').addEventListener('change', () => {
-          this.updateSKUOptions();
-          this.updateSizeOptions();
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-sku').addEventListener('change', () => {
-          this.updateSizeOptions();
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-size').addEventListener('change', () => {
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-sheet').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-post').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-  
-        document.getElementById('reset-config').addEventListener('click', () => {
-          this.resetSelections();
-        });
-  
-        this.updateSKUOptions();
-        this.updateSizeOptions();
-        this.updateColorOptions();
-      }
-  
+      // Only include a Parent SKU if at least one configuration for that parent
+      // produces a valid model file (either "GCDG.glb" or "GCSG.glb").
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
-        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
+        const validModels = ["GCDG", "GCSG"];
+        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))]
+          .filter(parent => {
+            return this.configurations.some(cfg => {
+              if (cfg["Parent SKU"].trim() === parent) {
+                // Determine the modelPrefix based on this configuration.
+                // For example, using the first two characters of the SKU:
+                const sku = cfg["SKU"];
+                // We assume the valid model is determined by: parent + sku.substring(0,2)
+                const modelPrefix = parent + sku.substring(0,2);
+                return validModels.includes(modelPrefix);
+              }
+              return false;
+            });
+          });
+  
         uniqueParents.forEach(parent => {
           const option = document.createElement('option');
           option.value = parent;
