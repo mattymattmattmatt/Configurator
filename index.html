@@ -268,7 +268,7 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Floor: A circular mesh with a 5m radius (10m diameter).
+        // Floor: a circular mesh with a 5m radius (10m diameter).
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -322,13 +322,28 @@
         this.updateColorOptions();
       }
   
+      // Only include a Parent SKU if, when combined with a candidate SKU,
+      // it produces a valid model prefix. For your models, valid prefixes are "GCDG" and "GCSG".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
   
         if (this.configurations.length > 0) {
+          const availableModelPrefixes = ["GCDG", "GCSG"];
           const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
-          uniqueParents.forEach(parent => {
+          const validParents = uniqueParents.filter(parent => {
+            // Check if at least one configuration with this parent produces a valid model prefix.
+            return this.configurations.some(cfg => {
+              if (cfg["Parent SKU"].trim() === parent) {
+                const sku = cfg["SKU"];
+                // Construct modelPrefix = Parent SKU + first 2 characters of the SKU identifier.
+                const modelPrefix = parent + sku.substring(0,2);
+                return availableModelPrefixes.includes(modelPrefix);
+              }
+              return false;
+            });
+          });
+          validParents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent;
             option.textContent = parent;
@@ -353,12 +368,12 @@
         select.appendChild(placeholder);
   
         const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        // Filter the unique SKU values so that only those whose identifier produces a valid model prefix are shown.
+        // Only include SKU identifiers that yield a valid model prefix.
+        const availableModelPrefixes = ["GCDG", "GCSG"];
         const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))]
           .filter(sku => {
-            // Construct modelPrefix = Parent SKU + first 2 letters of the SKU identifier.
             const modelPrefix = parent + sku.substring(0,2);
-            return (modelPrefix === "GCDG" || modelPrefix === "GCSG");
+            return availableModelPrefixes.includes(modelPrefix);
           });
   
         uniqueSKU.forEach(sku => {
@@ -460,7 +475,7 @@
   
         if (sku) {
           const modelPrefix = parent + sku.substring(0,2);
-          // Build candidate model file: e.g., "models/GCDG15.glb"
+          // Candidate model file, e.g. "models/GCDG15.glb"
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
           let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
