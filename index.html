@@ -182,6 +182,12 @@
     }
   
     // Helper: Parse the SKU into its parts.
+    // Format:
+    // - Characters 0-1: Parent SKU (e.g., "GC")
+    // - Characters 2-7: Identifier (e.g., "DGDCTP" or "SGDCTP")
+    // - Characters 8-9: Size code (e.g., "12", "15", "18", "21")
+    // - Characters 10-11: Sheet Colour short code
+    // - Characters 12-13: Post Track Colour short code
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -262,7 +268,7 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Floor as a circular mesh with a 5m radius (10m diameter)
+        // Floor: A circular mesh with a 5m radius (10m diameter).
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -320,8 +326,6 @@
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
   
-        // In our current setup, valid model files start with "GCDG" or "GCSG".
-        // Since both models have Parent SKU "GC", we simply include "GC" if any configuration exists.
         if (this.configurations.length > 0) {
           const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
           uniqueParents.forEach(parent => {
@@ -331,7 +335,6 @@
             select.appendChild(option);
           });
         } else {
-          // Fallback in case configurations are empty.
           const defaultOption = document.createElement('option');
           defaultOption.value = "GC";
           defaultOption.textContent = "GC";
@@ -350,7 +353,14 @@
         select.appendChild(placeholder);
   
         const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
+        // Filter the unique SKU values so that only those whose identifier produces a valid model prefix are shown.
+        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))]
+          .filter(sku => {
+            // Construct modelPrefix = Parent SKU + first 2 letters of the SKU identifier.
+            const modelPrefix = parent + sku.substring(0,2);
+            return (modelPrefix === "GCDG" || modelPrefix === "GCSG");
+          });
+  
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
@@ -450,9 +460,8 @@
   
         if (sku) {
           const modelPrefix = parent + sku.substring(0,2);
-          // Build candidate model filename: e.g., "models/GCDG15.glb"
+          // Build candidate model file: e.g., "models/GCDG15.glb"
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-          // Default file if the candidate isn't found.
           let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
           if (this.currentModelFile !== candidateModelFile) {
@@ -487,7 +496,6 @@
         }
       }
   
-      // New function: Try to load the candidate model file first.
       loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
         loader.load(candidateModelFile, (gltf) => {
@@ -502,7 +510,6 @@
           this.updateConfiguration();
         }, undefined, (error) => {
           console.warn("Candidate model not found: " + candidateModelFile + ". Falling back to default: " + defaultModelFile);
-          // Fallback to default model file.
           this.loadModel(defaultModelFile, scaleValue);
         });
       }
@@ -528,7 +535,6 @@
         });
       }
   
-      // Factor out the traverse logic.
       applyModelMaterials() {
         this.model.traverse((child) => {
           if (child.isMesh && child.material) {
