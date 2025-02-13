@@ -194,17 +194,14 @@
   
     class ProductConfigurator {
       constructor() {
-        // These will be set after data loads.
         this.configurations = [];
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
-        // Store only the materials used for SKU (Sheet and Post Track).
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
   
-        // Load external dataset and then initialize the UI.
         this.loadData().then(() => {
           this.initUI();
           this.updateConfiguration();
@@ -223,11 +220,9 @@
           this.colorMapping = data.colorMapping;
         } catch (error) {
           console.error("Error loading dataset:", error);
-          // Fallback: If data cannot be loaded, use empty arrays.
           this.configurations = [];
           this.colorMapping = [];
         }
-        // Make the data available globally.
         window.productData = {
           configurations: this.configurations,
           colorMapping: this.colorMapping
@@ -237,32 +232,23 @@
       initThreeJS() {
         this.scene = new THREE.Scene();
         const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(
-          75,
-          container.clientWidth / container.clientHeight,
-          0.1,
-          1000
-        );
+        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({
           canvas: document.querySelector('#product-canvas'),
           antialias: true,
           alpha: true
         });
-        // Enable shadows.
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   
         this.renderer.setClearColor(0x000000, 0);
   
-        // Set camera position (rotated ~40° to the left).
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
-        // Ambient light.
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
   
-        // Primary directional light (casting shadows).
         const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight1.position.set(-3.2, 5, 3.8);
         directionalLight1.castShadow = true;
@@ -272,13 +258,11 @@
         directionalLight1.shadow.camera.far = 50;
         this.scene.add(directionalLight1);
   
-        // Second directional light (fill light).
         const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Add a floor: a circular mesh with a 5m radius (10m diameter)
-        // Set the material to render only the front side so it is transparent when viewed from below.
+        // Floor as a circular mesh with a 5m radius (10m diameter)
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -332,34 +316,27 @@
         this.updateColorOptions();
       }
   
-      // Populate the Parent SKU dropdown. Only include a parent if there is at least one configuration
-      // that would load a valid model file. In our case, since both available model files (GCDG.glb and
-      // GCSG.glb) start with "GC", if a configuration’s Parent SKU is "GC" then it is valid.
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
   
-        // If no configurations were loaded (e.g. due to a 404), fall back to "GC".
-        if (this.configurations.length === 0) {
+        // In our current setup, valid model files start with "GCDG" or "GCSG".
+        // Since both models have Parent SKU "GC", we simply include "GC" if any configuration exists.
+        if (this.configurations.length > 0) {
+          const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
+          uniqueParents.forEach(parent => {
+            const option = document.createElement('option');
+            option.value = parent;
+            option.textContent = parent;
+            select.appendChild(option);
+          });
+        } else {
+          // Fallback in case configurations are empty.
           const defaultOption = document.createElement('option');
           defaultOption.value = "GC";
           defaultOption.textContent = "GC";
           select.appendChild(defaultOption);
-          return;
         }
-  
-        const availableModels = ["GCDG", "GCSG"];
-        const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))]
-          .filter(parent => {
-            return availableModels.some(modelName => modelName.startsWith(parent));
-          });
-  
-        uniqueParents.forEach(parent => {
-          const option = document.createElement('option');
-          option.value = parent;
-          option.textContent = parent;
-          select.appendChild(option);
-        });
       }
   
       updateSKUOptions() {
@@ -473,15 +450,13 @@
   
         if (sku) {
           const modelPrefix = parent + sku.substring(0,2);
-          let modelFile = "";
-          if (modelPrefix === "GCDG") {
-            modelFile = "models/GCDG.glb";
-          } else if (modelPrefix === "GCSG") {
-            modelFile = "models/GCSG.glb";
-          }
+          // Build candidate model filename: e.g., "models/GCDG15.glb"
+          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+          // Default file if the candidate isn't found.
+          let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
-          if (this.currentModelFile !== modelFile) {
-            this.loadModel(modelFile, scaleValue);
+          if (this.currentModelFile !== candidateModelFile) {
+            this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
           } else if (this.model) {
             this.model.scale.set(scaleValue, scaleValue, scaleValue);
           }
@@ -512,35 +487,28 @@
         }
       }
   
-      loadDefaultModel() {
+      // New function: Try to load the candidate model file first.
+      loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
-        loader.load("models/GCDG.glb", (gltf) => {
+        loader.load(candidateModelFile, (gltf) => {
           if (this.model) {
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          this.model.scale.set(1, 1, 1);
+          this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
-          this.currentModelFile = "models/GCDG.glb";
-  
-          this.model.traverse((child) => {
-            if (child.isMesh && child.material) {
-              child.castShadow = true;
-              const name = child.material.name.toLowerCase();
-              if (name.includes("accessories")) {
-                child.material.color.set("#808080");
-                child.material.needsUpdate = true;
-              } else if (name.includes("sheet")) {
-                this.materials.sheet = child.material;
-              } else if (name.includes("post")) {
-                this.materials.postTrack = child.material;
-              }
-            }
-          });
-          this.updateMaterialsDefault();
+          this.currentModelFile = candidateModelFile;
+          this.applyModelMaterials();
+          this.updateConfiguration();
         }, undefined, (error) => {
-          console.error("Error loading default model:", error);
+          console.warn("Candidate model not found: " + candidateModelFile + ". Falling back to default: " + defaultModelFile);
+          // Fallback to default model file.
+          this.loadModel(defaultModelFile, scaleValue);
         });
+      }
+  
+      loadDefaultModel() {
+        this.loadModel("models/GCDG.glb", 1);
       }
   
       loadModel(modelFile, scaleValue) {
@@ -553,24 +521,28 @@
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
-  
-          this.model.traverse((child) => {
-            if (child.isMesh && child.material) {
-              child.castShadow = true;
-              const name = child.material.name.toLowerCase();
-              if (name.includes("accessories")) {
-                child.material.color.set("#808080");
-                child.material.needsUpdate = true;
-              } else if (name.includes("sheet")) {
-                this.materials.sheet = child.material;
-              } else if (name.includes("post")) {
-                this.materials.postTrack = child.material;
-              }
-            }
-          });
+          this.applyModelMaterials();
           this.updateConfiguration();
         }, undefined, (error) => {
           console.error("Error loading model:", error);
+        });
+      }
+  
+      // Factor out the traverse logic.
+      applyModelMaterials() {
+        this.model.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.castShadow = true;
+            const name = child.material.name.toLowerCase();
+            if (name.includes("accessories")) {
+              child.material.color.set("#808080");
+              child.material.needsUpdate = true;
+            } else if (name.includes("sheet")) {
+              this.materials.sheet = child.material;
+            } else if (name.includes("post")) {
+              this.materials.postTrack = child.material;
+            }
+          }
         });
       }
   
