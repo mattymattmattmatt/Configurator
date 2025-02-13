@@ -182,12 +182,12 @@
     }
   
     // Helper: Parse the SKU into its parts.
-    // Format:
-    // - Characters 0-1: Parent SKU (e.g., "GC")
-    // - Characters 2-7: Identifier (e.g., "DGDCTP" or "SGDCTP")
-    // - Characters 8-9: Size code (e.g., "12", "15", "18", "21")
-    // - Characters 10-11: Sheet Colour short code
-    // - Characters 12-13: Post Track Colour short code
+    // For example, for "GCDGDCTP15BWBW":
+    // - Parent SKU: "GC"
+    // - Identifier: "DGDCTP"
+    // - Size: "15"
+    // - Sheet Colour: "BW"
+    // - Post Track Colour: "BW"
     function parseSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -246,7 +246,6 @@
         });
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  
         this.renderer.setClearColor(0x000000, 0);
   
         this.camera.position.set(-3.2, 3, 3.8);
@@ -322,25 +321,18 @@
         this.updateColorOptions();
       }
   
-      // Only include a Parent SKU if, when combined with a candidate SKU,
-      // it produces a valid model prefix. For your models, valid prefixes are "GCDG" and "GCSG".
+      // Only include a Parent SKU if there’s at least one configuration for that parent
+      // whose SKU starts with "GCDGDCTP" or "GCSGDCTP".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
   
         if (this.configurations.length > 0) {
-          const availableModelPrefixes = ["GCDG", "GCSG"];
           const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
           const validParents = uniqueParents.filter(parent => {
-            // Check if at least one configuration with this parent produces a valid model prefix.
             return this.configurations.some(cfg => {
-              if (cfg["Parent SKU"].trim() === parent) {
-                const sku = cfg["SKU"];
-                // Construct modelPrefix = Parent SKU + first 2 characters of the SKU identifier.
-                const modelPrefix = parent + sku.substring(0,2);
-                return availableModelPrefixes.includes(modelPrefix);
-              }
-              return false;
+              return cfg["Parent SKU"].trim() === parent &&
+                     (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"));
             });
           });
           validParents.forEach(parent => {
@@ -357,6 +349,7 @@
         }
       }
   
+      // Only include SKU options whose full SKU starts with "GCDGDCTP" or "GCSGDCTP"
       updateSKUOptions() {
         const parent = document.getElementById('dropdown-parent').value;
         const select = document.getElementById('dropdown-sku');
@@ -367,15 +360,11 @@
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        // Only include SKU identifiers that yield a valid model prefix.
-        const availableModelPrefixes = ["GCDG", "GCSG"];
-        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))]
-          .filter(sku => {
-            const modelPrefix = parent + sku.substring(0,2);
-            return availableModelPrefixes.includes(modelPrefix);
-          });
-  
+        const filtered = this.configurations.filter(cfg => 
+          cfg["Parent SKU"].trim() === parent &&
+          (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
+        );
+        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
@@ -474,15 +463,28 @@
         document.getElementById('sku').textContent = fullSKU;
   
         if (sku) {
-          const modelPrefix = parent + sku.substring(0,2);
-          // Candidate model file, e.g. "models/GCDG15.glb"
-          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-          let defaultModelFile = "models/" + modelPrefix + ".glb";
-          const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
-          if (this.currentModelFile !== candidateModelFile) {
-            this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
-          } else if (this.model) {
-            this.model.scale.set(scaleValue, scaleValue, scaleValue);
+          // Look for a configuration matching the parent and SKU to decide the model prefix.
+          const configMatch = this.configurations.find(cfg => 
+            cfg["Parent SKU"].trim() === parent && 
+            parseSKU(cfg["SKU"]).identifier === sku
+          );
+          let modelPrefix = "";
+          if (configMatch) {
+            if (configMatch["SKU"].startsWith("GCDGDCTP")) {
+              modelPrefix = "GCDG";
+            } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
+              modelPrefix = "GCSG";
+            }
+          }
+          if (modelPrefix) {
+            let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+            let defaultModelFile = "models/" + modelPrefix + ".glb";
+            const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
+            if (this.currentModelFile !== candidateModelFile) {
+              this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
+            } else if (this.model) {
+              this.model.scale.set(scaleValue, scaleValue, scaleValue);
+            }
           }
         } else {
           if (!this.model) {
