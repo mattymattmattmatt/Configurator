@@ -248,6 +248,7 @@
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000, 0);
   
+        // Set camera position (rotated ~40° to the left).
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
@@ -321,8 +322,7 @@
         this.updateColorOptions();
       }
   
-      // Only include a Parent SKU if there’s at least one configuration for that parent
-      // whose SKU starts with "GCDGDCTP" or "GCSGDCTP".
+      // Only include Parent SKUs if at least one configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
@@ -349,7 +349,7 @@
         }
       }
   
-      // Only include SKU options whose full SKU starts with "GCDGDCTP" or "GCSGDCTP"
+      // Only include SKU options if the configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
       updateSKUOptions() {
         const parent = document.getElementById('dropdown-parent').value;
         const select = document.getElementById('dropdown-sku');
@@ -454,6 +454,7 @@
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
+        // Update the SKU text regardless of model.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
@@ -462,54 +463,49 @@
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        if (sku) {
-          // Look for a configuration matching the parent and SKU to decide the model prefix.
-          const configMatch = this.configurations.find(cfg => 
-            cfg["Parent SKU"].trim() === parent && 
-            parseSKU(cfg["SKU"]).identifier === sku
-          );
-          let modelPrefix = "";
-          if (configMatch) {
-            if (configMatch["SKU"].startsWith("GCDGDCTP")) {
-              modelPrefix = "GCDG";
-            } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
-              modelPrefix = "GCSG";
-            }
+        // Only load a model if parent, sku and size are all selected.
+        if (!parent || !sku || !sizeCode) {
+          if (this.model) {
+            this.scene.remove(this.model);
+            this.model = null;
+            this.currentModelFile = null;
           }
-          if (modelPrefix) {
-            let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-            let defaultModelFile = "models/" + modelPrefix + ".glb";
-            const scaleValue = sizeCode ? (parseInt(sizeCode) / 10) : 1;
-            if (this.currentModelFile !== candidateModelFile) {
-              this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
-            } else if (this.model) {
+          return;
+        }
+  
+        // Determine model prefix based on a matching configuration.
+        const configMatch = this.configurations.find(cfg => 
+          cfg["Parent SKU"].trim() === parent && 
+          parseSKU(cfg["SKU"]).identifier === sku
+        );
+        let modelPrefix = "";
+        if (configMatch) {
+          if (configMatch["SKU"].startsWith("GCDGDCTP")) {
+            modelPrefix = "GCDG";
+          } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
+            modelPrefix = "GCSG";
+          }
+        }
+  
+        if (modelPrefix) {
+          // Build candidate model file: e.g. "models/GCDG15.glb"
+          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+          // Default file if candidate is not available.
+          let defaultModelFile = "models/" + modelPrefix + ".glb";
+          // Compute the scale value from the size code.
+          const scaleValue = (parseInt(sizeCode) / 10);
+          // Attempt to load candidate model.
+          // Note: If the candidate loads successfully, we assume it is already at its native size,
+          // so we do NOT apply any scaling.
+          if (this.currentModelFile !== candidateModelFile) {
+            this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
+          } else if (this.model) {
+            // If the model is already loaded and it’s the default (scaled) model, update the scale.
+            // (Candidate models loaded with size-specific filenames are not scaled.)
+            if (this.currentModelFile === defaultModelFile) {
               this.model.scale.set(scaleValue, scaleValue, scaleValue);
             }
           }
-        } else {
-          if (!this.model) {
-            this.loadDefaultModel();
-          }
-        }
-  
-        if (this.materials.sheet) {
-          if (sheetColor) {
-            const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
-            this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
-          } else {
-            this.materials.sheet.color.set("#808080");
-          }
-          this.materials.sheet.needsUpdate = true;
-        }
-  
-        if (this.materials.postTrack) {
-          if (postColor) {
-            const postColorObj = this.colorMapping.find(c => c["Colour"] === postColor);
-            this.materials.postTrack.color.set(postColorObj ? postColorObj["Hex"] : "#808080");
-          } else {
-            this.materials.postTrack.color.set("#808080");
-          }
-          this.materials.postTrack.needsUpdate = true;
         }
       }
   
@@ -519,8 +515,8 @@
           if (this.model) {
             this.scene.remove(this.model);
           }
+          // Candidate model loaded successfully; use its native size (do not scale)
           this.model = gltf.scene;
-          this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
           this.applyModelMaterials();
@@ -542,6 +538,7 @@
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
+          // For default models, apply the scaling.
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
@@ -592,6 +589,13 @@
   
         document.getElementById('sku').textContent = "XXXXXXXX";
         this.updateMaterialsDefault();
+  
+        // Remove any loaded model.
+        if (this.model) {
+          this.scene.remove(this.model);
+          this.model = null;
+          this.currentModelFile = null;
+        }
       }
   
       onWindowResize() {
