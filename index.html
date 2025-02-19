@@ -185,7 +185,7 @@
     // Example for "GCDGDCTP15BWBW":
     //   Parent SKU: "GC"
     //   Identifier: "DGDCTP"
-    //   Size: "15"   -> 1.5m
+    //   Size: "15"   (i.e., 1.5m when divided by 10)
     //   Sheet Colour: "BW"
     //   Post Track Colour: "BW"
     function parseSKU(sku) {
@@ -322,7 +322,7 @@
         this.updateColorOptions();
       }
   
-      // Include Parent SKUs only if there’s at least one configuration whose SKU starts with "GCDGDCTP" or "GCSGDCTP".
+      // Include Parent SKUs only if at least one configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
@@ -448,14 +448,13 @@
       }
   
       updateConfiguration() {
-        // Only update the model if Parent, SKU, and Size are selected.
         const parent = document.getElementById('dropdown-parent').value;
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        // Update the SKU display regardless.
+        // Update SKU display.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
@@ -464,7 +463,7 @@
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // If any of the required dropdowns are not selected, remove the model.
+        // Only load a model if Parent, SKU, and Size are selected.
         if (!parent || !sku || !sizeCode) {
           if (this.model) {
             this.scene.remove(this.model);
@@ -474,12 +473,12 @@
           return;
         }
   
-        // Ensure materials are applied (if not already).
+        // Ensure materials are assigned.
         if (!this.materials.sheet || !this.materials.postTrack) {
           this.applyModelMaterials();
         }
   
-        // Find a matching configuration to decide model prefix.
+        // Find a matching configuration to determine model prefix.
         const configMatch = this.configurations.find(cfg => 
           cfg["Parent SKU"].trim() === parent && 
           parseSKU(cfg["SKU"]).identifier === sku
@@ -494,15 +493,15 @@
         }
   
         if (modelPrefix) {
-          // Build candidate model file e.g., "models/GCDG15.glb"
+          // Build candidate model file, e.g., "models/GCDG15.glb"
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
           let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = parseInt(sizeCode) / 10;
-  
+          // Try candidate model first.
           if (this.currentModelFile !== candidateModelFile) {
             this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
           } else if (this.model) {
-            // For default models, update the scale.
+            // If the current model is the default one, update its scale.
             if (this.currentModelFile === defaultModelFile) {
               this.model.scale.set(scaleValue, scaleValue, scaleValue);
             }
@@ -529,8 +528,10 @@
           if (this.model) {
             this.scene.remove(this.model);
           }
-          // Candidate model is assumed to be at its native size.
+          // Candidate model loads successfully; use its native size.
           this.model = gltf.scene;
+          // Explicitly set to native size.
+          this.model.scale.set(1,1,1);
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
           this.applyModelMaterials();
@@ -552,6 +553,7 @@
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
+          // For default models, apply scaling.
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
@@ -563,7 +565,7 @@
       }
   
       applyModelMaterials() {
-        // Traverse the model and assign materials based on name.
+        // Traverse the model and assign materials for sheet and post.
         this.model.traverse((child) => {
           if (child.isMesh && child.material) {
             child.castShadow = true;
