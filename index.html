@@ -182,10 +182,10 @@
     }
   
     // Helper: Parse the SKU into its parts.
-    // Example for "GCDGDCTP15BWBW":
+    // For example, for "GCDGDCTP15BWBW":
     //   Parent SKU: "GC"
     //   Identifier: "DGDCTP"
-    //   Size: "15"   (i.e., 1.5m when divided by 10)
+    //   Size: "15" (which means 1.5m when divided by 10)
     //   Sheet Colour: "BW"
     //   Post Track Colour: "BW"
     function parseSKU(sku) {
@@ -204,12 +204,14 @@
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
+        // We'll store the materials for sheet and post if they are available.
         this.materials = { sheet: null, postTrack: null };
   
         this.initThreeJS();
   
         this.loadData().then(() => {
           this.initUI();
+          // Do not load any model by default until all three selections are made.
           this.updateConfiguration();
           this.animate();
         });
@@ -322,7 +324,7 @@
         this.updateColorOptions();
       }
   
-      // Include Parent SKUs only if at least one configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
+      // Only include Parent SKUs if at least one configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
@@ -360,7 +362,7 @@
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => 
+        const filtered = this.configurations.filter(cfg =>
           cfg["Parent SKU"].trim() === parent &&
           (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
         );
@@ -454,7 +456,7 @@
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        // Update SKU display.
+        // Update the SKU display regardless.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
@@ -473,12 +475,12 @@
           return;
         }
   
-        // Ensure materials are assigned.
-        if (!this.materials.sheet || !this.materials.postTrack) {
-          this.applyModelMaterials();
+        // If a model is loaded, ensure its materials are set to plain grey by default.
+        if (this.model) {
+          this.applyDefaultGreyToModel();
         }
   
-        // Find a matching configuration to determine model prefix.
+        // Determine model prefix from a matching configuration.
         const configMatch = this.configurations.find(cfg => 
           cfg["Parent SKU"].trim() === parent && 
           parseSKU(cfg["SKU"]).identifier === sku
@@ -493,22 +495,19 @@
         }
   
         if (modelPrefix) {
-          // Build candidate model file, e.g., "models/GCDG15.glb"
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
           let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = parseInt(sizeCode) / 10;
-          // Try candidate model first.
           if (this.currentModelFile !== candidateModelFile) {
             this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
           } else if (this.model) {
-            // If the current model is the default one, update its scale.
             if (this.currentModelFile === defaultModelFile) {
               this.model.scale.set(scaleValue, scaleValue, scaleValue);
             }
           }
         }
   
-        // Update material colours.
+        // Update material colours based on dropdown selections.
         if (this.materials.sheet) {
           const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
           this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
@@ -522,16 +521,24 @@
         }
       }
   
+      // Traverse the model and apply a plain grey (#808080) colour to every mesh.
+      applyDefaultGreyToModel() {
+        this.model.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.color.set("#808080");
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+  
       loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
         loader.load(candidateModelFile, (gltf) => {
           if (this.model) {
             this.scene.remove(this.model);
           }
-          // Candidate model loads successfully; use its native size.
+          // Candidate model loaded successfully; assume it is at native size.
           this.model = gltf.scene;
-          // Explicitly set to native size.
-          this.model.scale.set(1,1,1);
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
           this.applyModelMaterials();
@@ -565,8 +572,9 @@
       }
   
       applyModelMaterials() {
-        // Traverse the model and assign materials for sheet and post.
-        this.model.traverse((child) => {
+        // Traverse the model and assign references for sheet and post materials.
+        // Also, if materials are not clearly labeled, leave them with the default grey already applied.
+        this.model.traverse(child => {
           if (child.isMesh && child.material) {
             child.castShadow = true;
             const name = child.material.name.toLowerCase();
