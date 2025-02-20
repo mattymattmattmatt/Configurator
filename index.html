@@ -117,6 +117,7 @@
       <div class="model-container">
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
+          <div id="loading-indicator" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Loading...</div>
         </div>
         <div class="sku-display">
           SKU: <span id="sku">XXXXXXXX</span>
@@ -173,35 +174,34 @@
   <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-  
   <script>
-    // Helper: Given a colour name, return its short code.
-    function getShortCode(colorName) {
-      const mapping = window.productData.colorMapping.find(c => c["Colour"] === colorName);
-      return mapping ? mapping["Short Code"] : "";
+    // Helper: Given a colour name, return its short code using a precomputed map
+    function getShortCode(colorName, colorMap) {
+      return colorMap[colorName] || "";
     }
   
-    // Helper: Parse the SKU into its parts.
-    // For example, for "GCDGDCTP15BWBW":
-    //   Parent SKU: "GC"
-    //   Identifier: "DGDCTP"
-    //   Size: "15" (which means 1.5m when divided by 10)
-    //   Sheet Colour: "BW"
-    //   Post Track Colour: "BW"
+    // Helper: Parse the SKU into its parts using a regex for flexibility
     function parseSKU(sku) {
-      return {
-        parent: sku.substring(0,2).trim(),
-        identifier: sku.substring(2,8).trim(),
-        size: sku.substring(8,10).trim(),
-        sheet: sku.substring(10,12).trim(),
-        post: sku.substring(12,14).trim()
-      };
+      const regex = /^(\w{2})(\w{6})(\d{2})(\w{2})(\w{2})$/;
+      const match = sku.match(regex);
+      if (match) {
+        return {
+          parent: match[1],
+          identifier: match[2],
+          size: match[3],
+          sheet: match[4],
+          post: match[5]
+        };
+      }
+      return { parent: "", identifier: "", size: "", sheet: "", post: "" };
     }
   
     class ProductConfigurator {
       constructor() {
         this.configurations = [];
+        this.configMap = {};
         this.colorMapping = [];
+        this.colorMap = {};
         this.currentModelFile = null;
         this.model = null;
         this.materials = { sheet: null, postTrack: null };
@@ -210,13 +210,14 @@
   
         this.loadData().then(() => {
           this.initUI();
-          // Do not load any model until all selections are made.
           this.updateConfiguration();
           this.animate();
         });
       }
   
       async loadData() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        loadingIndicator.style.display = 'block';
         try {
           const response = await fetch('data.json');
           if (!response.ok) {
@@ -225,11 +226,41 @@
           const data = await response.json();
           this.configurations = data.configurations;
           this.colorMapping = data.colorMapping;
+
+          // Preprocess configurations into a map
+          this.configMap = {};
+          this.configurations.forEach(cfg => {
+            const parent = cfg["Parent SKU"].trim();
+            const parsed = parseSKU(cfg["SKU"]);
+            if (!this.configMap[parent]) {
+              this.configMap[parent] = {};
+            }
+            if (!this.configMap[parent][parsed.identifier]) {
+              this.configMap[parent][parsed.identifier] = {
+                sizes: new Set(),
+                sheetColors: new Set(),
+                postColors: new Set(),
+                modelPrefix: cfg["SKU"].startsWith("GCDGDCTP") ? "GCDG" : cfg["SKU"].startsWith("GCSGDCTP") ? "GCSG" : ""
+              };
+            }
+            this.configMap[parent][parsed.identifier].sizes.add(parsed.size);
+            this.configMap[parent][parsed.identifier].sheetColors.add(cfg["Sheet Colour"]);
+            this.configMap[parent][parsed.identifier].postColors.add(cfg["Post Track Colour"]);
+          });
+
+          // Precompute color mapping
+          this.colorMap = {};
+          this.colorMapping.forEach(c => {
+            this.colorMap[c["Colour"]] = { shortCode: c["Short Code"], hex: c["Hex"] };
+          });
         } catch (error) {
           console.error("Error loading dataset:", error);
+          this.configMap = {};
           this.configurations = [];
           this.colorMapping = [];
+          this.colorMap = {};
         }
+        loadingIndicator.style.display = 'none';
         window.productData = {
           configurations: this.configurations,
           colorMapping: this.colorMapping
@@ -249,7 +280,6 @@
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000, 0);
   
-        // Set camera position.
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
@@ -269,7 +299,6 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Floor: a circular mesh with a 5m radius (10m diameter).
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -323,19 +352,12 @@
         this.updateColorOptions();
       }
   
-      // Only include Parent SKUs that have at least one configuration whose SKU starts with "GCDGDCTP" or "GCSGDCTP".
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
   
-        if (this.configurations.length > 0) {
-          const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
-          const validParents = uniqueParents.filter(parent => {
-            return this.configurations.some(cfg => {
-              return cfg["Parent SKU"].trim() === parent &&
-                     (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"));
-            });
-          });
+        if (Object.keys(this.configMap).length > 0) {
+          const validParents = Object.keys(this.configMap);
           validParents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent;
@@ -350,7 +372,6 @@
         }
       }
   
-      // Only include SKU options if the configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
       updateSKUOptions() {
         const parent = document.getElementById('dropdown-parent').value;
         const select = document.getElementById('dropdown-sku');
@@ -361,21 +382,11 @@
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => 
-          cfg["Parent SKU"].trim() === parent &&
-          (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
-        );
-        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
-        uniqueSKU.forEach(sku => {
+        const identifiers = this.configMap[parent] ? Object.keys(this.configMap[parent]) : [];
+        identifiers.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
-          if (sku === "SGDCTP") {
-            option.textContent = "Single Gate";
-          } else if (sku === "DGDCTP") {
-            option.textContent = "Double Gate";
-          } else {
-            option.textContent = sku;
-          }
+          option.textContent = sku === "SGDCTP" ? "Single Gate" : sku === "DGDCTP" ? "Double Gate" : sku;
           select.appendChild(option);
         });
       }
@@ -391,13 +402,9 @@
         placeholder.textContent = "Select Size";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => {
-          const parsed = parseSKU(cfg["SKU"]);
-          return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
-        });
-        const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
-        uniqueSizes.sort();
-        uniqueSizes.forEach(sizeCode => {
+        const sizes = this.configMap[parent]?.[sku]?.sizes || new Set();
+        const sortedSizes = Array.from(sizes).sort();
+        sortedSizes.forEach(sizeCode => {
           const option = document.createElement('option');
           option.value = sizeCode;
           option.textContent = (parseInt(sizeCode) / 10).toFixed(1) + "m";
@@ -424,28 +431,27 @@
         postPlaceholder.textContent = "Select Post Colour";
         postSelect.appendChild(postPlaceholder);
   
-        const filtered = this.configurations.filter(cfg => {
-          const parsed = parseSKU(cfg["SKU"]);
-          return cfg["Parent SKU"].trim() === parent &&
-                 parsed.identifier === sku &&
-                 parsed.size === sizeCode;
-        });
+        if (this.configMap[parent]?.[sku]?.sizes.has(sizeCode)) {
+          const sheetColors = this.configMap[parent][sku].sheetColors;
+          sheetColors.forEach(color => {
+            if (color) {
+              const option = document.createElement('option');
+              option.value = color;
+              option.textContent = color;
+              sheetSelect.appendChild(option);
+            }
+          });
   
-        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
-        uniqueSheet.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          sheetSelect.appendChild(option);
-        });
-  
-        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
-        uniquePost.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          postSelect.appendChild(option);
-        });
+          const postColors = this.configMap[parent][sku].postColors;
+          postColors.forEach(color => {
+            if (color) {
+              const option = document.createElement('option');
+              option.value = color;
+              option.textContent = color;
+              postSelect.appendChild(option);
+            }
+          });
+        }
       }
   
       updateConfiguration() {
@@ -455,18 +461,14 @@
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        console.log("updateConfiguration:", { parent, sku, sizeCode, sheetColor, postColor });
-  
-        // Update SKU display.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
-        const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
-        const postPart = postColor ? (getShortCode(postColor) || "XX") : "XX";
+        const sheetPart = sheetColor ? getShortCode(sheetColor, this.colorMap) : "XX";
+        const postPart = postColor ? getShortCode(postColor, this.colorMap) : "XX";
   
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // Only load a model if Parent, SKU, and Size are selected.
         if (!parent || !sku || !sizeCode) {
           if (this.model) {
             this.scene.remove(this.model);
@@ -476,55 +478,35 @@
           return;
         }
   
-        // Apply a default grey material to any loaded model so something is visible.
         if (this.model) {
           this.applyDefaultGreyToModel();
         }
   
-        // Find a matching configuration to determine model prefix.
-        const configMatch = this.configurations.find(cfg => 
-          cfg["Parent SKU"].trim() === parent && 
-          parseSKU(cfg["SKU"]).identifier === sku
-        );
-        let modelPrefix = "";
-        if (configMatch) {
-          if (configMatch["SKU"].startsWith("GCDGDCTP")) {
-            modelPrefix = "GCDG";
-          } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
-            modelPrefix = "GCSG";
-          }
-        }
-        console.log("modelPrefix:", modelPrefix);
-  
+        const modelPrefix = this.configMap[parent]?.[sku]?.modelPrefix || "";
         if (modelPrefix) {
-          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-          let defaultModelFile = "models/" + modelPrefix + ".glb";
-          console.log("Candidate Model:", candidateModelFile, "Default Model:", defaultModelFile);
+          const candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+          const defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = parseInt(sizeCode) / 10;
   
           if (this.currentModelFile !== candidateModelFile) {
             this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
-          } else if (this.model) {
-            if (this.currentModelFile === defaultModelFile) {
-              this.model.scale.set(scaleValue, scaleValue, scaleValue);
-            }
+          } else if (this.model && this.currentModelFile === defaultModelFile) {
+            this.model.scale.set(scaleValue, scaleValue, scaleValue);
           }
         }
   
-        // Update material colours.
         if (this.materials.sheet) {
-          const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
-          this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
+          const sheetColorData = this.colorMap[sheetColor];
+          this.materials.sheet.color.set(sheetColorData ? sheetColorData.hex : "#808080");
           this.materials.sheet.needsUpdate = true;
         }
         if (this.materials.postTrack) {
-          const postColorObj = this.colorMapping.find(c => c["Colour"] === postColor);
-          this.materials.postTrack.color.set(postColorObj ? postColorObj["Hex"] : "#808080");
+          const postColorData = this.colorMap[postColor];
+          this.materials.postTrack.color.set(postColorData ? postColorData.hex : "#808080");
           this.materials.postTrack.needsUpdate = true;
         }
       }
   
-      // Traverse the model and set all mesh materials to a default grey.
       applyDefaultGreyToModel() {
         this.model.traverse(child => {
           if (child.isMesh && child.material) {
@@ -536,48 +518,49 @@
   
       loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
+        const loadingIndicator = document.getElementById('loading-indicator');
+        loadingIndicator.style.display = 'block';
+  
         loader.load(candidateModelFile, (gltf) => {
-          console.log("Loaded candidate model:", candidateModelFile);
+          loadingIndicator.style.display = 'none';
           if (this.model) {
             this.scene.remove(this.model);
           }
-          // Use candidate model at native size.
           this.model = gltf.scene;
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
           this.applyModelMaterials();
           this.updateConfiguration();
-        }, undefined, (error) => {
+        }, undefined, () => {
           console.warn("Candidate model not found:", candidateModelFile, "Falling back to:", defaultModelFile);
           this.loadModel(defaultModelFile, scaleValue);
         });
       }
   
-      loadDefaultModel() {
-        this.loadModel("models/GCDG.glb", 1);
-      }
-  
       loadModel(modelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
+        const loadingIndicator = document.getElementById('loading-indicator');
+        loadingIndicator.style.display = 'block';
+  
         loader.load(modelFile, (gltf) => {
-          console.log("Loaded default model:", modelFile);
+          loadingIndicator.style.display = 'none';
           if (this.model) {
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // Apply scaling to default models.
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
           this.applyModelMaterials();
           this.updateConfiguration();
         }, undefined, (error) => {
-          console.error("Error loading model:", error);
+          loadingIndicator.style.display = 'none';
+          console.error("Error loading model:", modelFile, error);
+          alert("Failed to load the model. Please try again later.");
         });
       }
   
       applyModelMaterials() {
-        // Traverse the model and assign materials for sheet and post.
         this.model.traverse(child => {
           if (child.isMesh && child.material) {
             child.castShadow = true;
@@ -606,7 +589,7 @@
       }
   
       resetSelections() {
-        document.getElementById('dropdown-parent').value = this.configurations.length > 0 ? this.configurations[0]["Parent SKU"].trim() : "GC";
+        document.getElementById('dropdown-parent').value = Object.keys(this.configMap)[0] || "GC";
         this.updateSKUOptions();
         document.getElementById('dropdown-sku').value = "";
         this.updateSizeOptions();
