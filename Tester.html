@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Iframe Test - Product Configurator</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .iframe-container {
+      width: 660px;
+      height: 660px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="iframe-container">
+    <iframe 
+      title="Product Configurator"
+      srcdoc='<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Product Configurator</title>
+  <style>
+    :root {
+      --primary: #2c3e50;
+      --secondary: #3498db;
+      --background: #ecf0f1;
+      --text: #2c3e50;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    body {
+      background: var(--background);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: 2rem;
+      color: var(--primary);
+    }
+    .configurator {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 2rem;
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    .model-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 700px;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(to top, #ffffff, #cccccc);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .control-group {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #eee;
+      transition: background-color 0.3s ease;
+    }
+    .control-group:hover {
+      background-color: #f8f8f8;
+    }
+    .control-header {
+      margin-bottom: 0.5rem;
+    }
+    .control-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .sku-display {
+      background: var(--primary);
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: monospace;
+      text-align: center;
+    }
+    select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: none;
+      background: var(--secondary);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Product Configurator</h1>
+    <div class="configurator">
+      <!-- Left Column: 3D Model, Floor & SKU Display -->
+      <div class="model-container">
+        <div id="canvas-container">
+          <canvas id="product-canvas"></canvas>
+        </div>
+        <div class="sku-display">
+          SKU: <span id="sku">XXXXXXXX</span>
+        </div>
+      </div>
+      <!-- Right Column: Cascading Dropdowns -->
+      <div class="controls">
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">Parent SKU</span>
+            <select id="dropdown-parent"></select>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">SKU</span>
+            <select id="dropdown-sku">
+              <option value="">Select SKU</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">Size (m)</span>
+            <select id="dropdown-size">
+              <option value="">Select Size</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">Sheet Colour</span>
+            <select id="dropdown-sheet">
+              <option value="">Select Sheet Colour</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-title">Post Track Colour</span>
+            <select id="dropdown-post">
+              <option value="">Select Post Colour</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <button id="reset-config">Reset Configurator</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Three.js and Helpers -->
+  <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+  
+  <script>
+    // Helper: Given a colour name, return its short code.
+    function getShortCode(colorName) {
+      const mapping = window.productData.colorMapping.find(c => c["Colour"] === colorName);
+      return mapping ? mapping["Short Code"] : "";
+    }
+  
+    // Helper: Parse the SKU into its parts.
+    function parseSKU(sku) {
+      return {
+        parent: sku.substring(0,2).trim(),
+        identifier: sku.substring(2,8).trim(),
+        size: sku.substring(8,10).trim(),
+        sheet: sku.substring(10,12).trim(),
+        post: sku.substring(12,14).trim()
+      };
+    }
+  
+    class ProductConfigurator {
+      constructor() {
+        this.configurations = [];
+        this.colorMapping = [];
+        this.currentModelFile = null;
+        this.model = null;
+        this.materials = { sheet: null, postTrack: null };
+  
+        this.initThreeJS();
+  
+        this.loadData().then(() => {
+          this.initUI();
+          this.updateConfiguration();
+          this.animate();
+        });
+      }
+  
+      async loadData() {
+        try {
+          const response = await fetch('data.json');
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          const data = await response.json();
+          this.configurations = data.configurations;
+          this.colorMapping = data.colorMapping;
+        } catch (error) {
+          console.error("Error loading dataset:", error);
+          this.configurations = [];
+          this.colorMapping = [];
+        }
+        window.productData = {
+          configurations: this.configurations,
+          colorMapping: this.colorMapping
+        };
+      }
+  
+      initThreeJS() {
+        this.scene = new THREE.Scene();
+        const container = document.getElementById('canvas-container');
+        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: document.querySelector('#product-canvas'),
+          antialias: true,
+          alpha: true
+        });
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setClearColor(0x000000, 0);
+  
+        this.camera.position.set(-3.2, 3, 3.8);
+        this.camera.lookAt(0, 0, 0);
+  
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+  
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight1.position.set(-3.2, 5, 3.8);
+        directionalLight1.castShadow = true;
+        directionalLight1.shadow.mapSize.width = 1024;
+        directionalLight1.shadow.mapSize.height = 1024;
+        directionalLight1.shadow.camera.near = 0.5;
+        directionalLight1.shadow.camera.far = 50;
+        this.scene.add(directionalLight1);
+  
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight2.position.set(3.2, 5, -3.8);
+        this.scene.add(directionalLight2);
+  
+        const floorGeometry = new THREE.CircleGeometry(5, 32);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+          color: 0x808080,
+          side: THREE.FrontSide
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        floor.receiveShadow = true;
+        this.scene.add(floor);
+  
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+  
+        window.addEventListener('resize', this.onWindowResize.bind(this));
+        this.onWindowResize();
+      }
+  
+      initUI() {
+        this.populateParentDropdown();
+  
+        document.getElementById('dropdown-parent').addEventListener('change', () => {
+          this.updateSKUOptions();
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sku').addEventListener('change', () => {
+          this.updateSizeOptions();
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-size').addEventListener('change', () => {
+          this.updateColorOptions();
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-sheet').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-post').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+  
+        document.getElementById('reset-config').addEventListener('click', () => {
+          this.resetSelections();
+        });
+  
+        this.updateSKUOptions();
+        this.updateSizeOptions();
+        this.updateColorOptions();
+      }
+  
+      populateParentDropdown() {
+        const select = document.getElementById('dropdown-parent');
+        select.innerHTML = "";
+  
+        if (this.configurations.length > 0) {
+          const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
+          const validParents = uniqueParents.filter(parent => {
+            return this.configurations.some(cfg => {
+              return cfg["Parent SKU"].trim() === parent &&
+                     (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"));
+            });
+          });
+          validParents.forEach(parent => {
+            const option = document.createElement('option');
+            option.value = parent;
+            option.textContent = parent;
+            select.appendChild(option);
+          });
+        } else {
+          const defaultOption = document.createElement('option');
+          defaultOption.value = "GC";
+          defaultOption.textContent = "GC";
+          select.appendChild(defaultOption);
+        }
+      }
+  
+      updateSKUOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const select = document.getElementById('dropdown-sku');
+        select.innerHTML = "";
+  
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.textContent = "Select SKU";
+        select.appendChild(placeholder);
+  
+        const filtered = this.configurations.filter(cfg => 
+          cfg["Parent SKU"].trim() === parent &&
+          (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
+        );
+        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
+        uniqueSKU.forEach(sku => {
+          const option = document.createElement('option');
+          option.value = sku;
+          if (sku === "SGDCTP") {
+            option.textContent = "Single Gate";
+          } else if (sku === "DGDCTP") {
+            option.textContent = "Double Gate";
+          } else {
+            option.textContent = sku;
+          }
+          select.appendChild(option);
+        });
+      }
+  
+      updateSizeOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const select = document.getElementById('dropdown-size');
+        select.innerHTML = "";
+  
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.textContent = "Select Size";
+        select.appendChild(placeholder);
+  
+        const filtered = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
+        });
+        const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
+        uniqueSizes.sort();
+        uniqueSizes.forEach(sizeCode => {
+          const option = document.createElement('option');
+          option.value = sizeCode;
+          option.textContent = (parseInt(sizeCode) / 10).toFixed(1) + "m";
+          select.appendChild(option);
+        });
+      }
+  
+      updateColorOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const sizeCode = document.getElementById('dropdown-size').value;
+  
+        const sheetSelect = document.getElementById('dropdown-sheet');
+        sheetSelect.innerHTML = "";
+        const sheetPlaceholder = document.createElement('option');
+        sheetPlaceholder.value = "";
+        sheetPlaceholder.textContent = "Select Sheet Colour";
+        sheetSelect.appendChild(sheetPlaceholder);
+  
+        const postSelect = document.getElementById('dropdown-post');
+        postSelect.innerHTML = "";
+        const postPlaceholder = document.createElement('option');
+        postPlaceholder.value = "";
+        postPlaceholder.textContent = "Select Post Colour";
+        postSelect.appendChild(postPlaceholder);
+  
+        const filtered = this.configurations.filter(cfg => {
+          const parsed = parseSKU(cfg["SKU"]);
+          return cfg["Parent SKU"].trim() === parent &&
+                 parsed.identifier === sku &&
+                 parsed.size === sizeCode;
+        });
+  
+        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
+        uniqueSheet.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          sheetSelect.appendChild(option);
+        });
+  
+        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
+        uniquePost.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          postSelect.appendChild(option);
+        });
+      }
+  
+      updateConfiguration() {
+        const parent = document.getElementById('dropdown-parent').value;
+        const sku = document.getElementById('dropdown-sku').value;
+        const sizeCode = document.getElementById('dropdown-size').value;
+        const sheetColor = document.getElementById('dropdown-sheet').value;
+        const postColor = document.getElementById('dropdown-post').value;
+  
+        console.log("updateConfiguration:", { parent, sku, sizeCode, sheetColor, postColor });
+  
+        const identifier = sku || "XXXXXX";
+        const sizePart = sizeCode || "XX";
+        const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
+        const postPart = postColor ? (getShortCode(postColor) || "XX") : "XX";
+  
+        const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
+        document.getElementById('sku').textContent = fullSKU;
+  
+        if (!parent || !sku || !sizeCode) {
+          if (this.model) {
+            this.scene.remove(this.model);
+            this.model = null;
+            this.currentModelFile = null;
+          }
+          return;
+        }
+  
+        if (this.model) {
+          this.applyDefaultGreyToModel();
+        }
+  
+        const configMatch = this.configurations.find(cfg => 
+          cfg["Parent SKU"].trim() === parent && 
+          parseSKU(cfg["SKU"]).identifier === sku
+        );
+        let modelPrefix = "";
+        if (configMatch) {
+          if (configMatch["SKU"].startsWith("GCDGDCTP")) {
+            modelPrefix = "GCDG";
+          } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
+            modelPrefix = "GCSG";
+          }
+        }
+        console.log("modelPrefix:", modelPrefix);
+  
+        if (modelPrefix) {
+          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+          let defaultModelFile = "models/" + modelPrefix + ".glb";
+          console.log("Candidate Model:", candidateModelFile, "Default Model:", defaultModelFile);
+          const scaleValue = parseInt(sizeCode) / 10;
+  
+          if (this.currentModelFile !== candidateModelFile) {
+            this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
+          } else if (this.model) {
+            if (this.currentModelFile === defaultModelFile) {
+              this.model.scale.set(scaleValue, scaleValue, scaleValue);
+            }
+          }
+        }
+  
+        if (this.materials.sheet) {
+          const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
+          this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
+          this.materials.sheet.needsUpdate = true;
+        }
+        if (this.materials.postTrack) {
+          const postColorObj = this.colorMapping.find(c => c["Colour"] === postColor);
+          this.materials.postTrack.color.set(postColorObj ? postColorObj["Hex"] : "#808080");
+          this.materials.postTrack.needsUpdate = true;
+        }
+      }
+  
+      applyDefaultGreyToModel() {
+        this.model.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.color.set("#808080");
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+  
+      loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
+        const loader = new THREE.GLTFLoader();
+        loader.load(candidateModelFile, (gltf) => {
+          console.log("Loaded candidate model:", candidateModelFile);
+          if (this.model) {
+            this.scene.remove(this.model);
+          }
+          this.model = gltf.scene;
+          this.scene.add(this.model);
+          this.currentModelFile = candidateModelFile;
+          this.applyModelMaterials();
+          this.updateConfiguration();
+        }, undefined, (error) => {
+          console.warn("Candidate model not found:", candidateModelFile, "Falling back to:", defaultModelFile);
+          this.loadModel(defaultModelFile, scaleValue);
+        });
+      }
+  
+      loadDefaultModel() {
+        this.loadModel("models/GCDG.glb", 1);
+      }
+  
+      loadModel(modelFile, scaleValue) {
+        const loader = new THREE.GLTFLoader();
+        loader.load(modelFile, (gltf) => {
+          console.log("Loaded default model:", modelFile);
+          if (this.model) {
+            this.scene.remove(this.model);
+          }
+          this.model = gltf.scene;
+          this.model.scale.set(scaleValue, scaleValue, scaleValue);
+          this.scene.add(this.model);
+          this.currentModelFile = modelFile;
+          this.applyModelMaterials();
+          this.updateConfiguration();
+        }, undefined, (error) => {
+          console.error("Error loading model:", error);
+        });
+      }
+  
+      applyModelMaterials() {
+        this.model.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.castShadow = true;
+            const name = child.material.name.toLowerCase();
+            if (name.includes("accessories")) {
+              child.material.color.set("#808080");
+              child.material.needsUpdate = true;
+            } else if (name.includes("sheet")) {
+              this.materials.sheet = child.material;
+            } else if (name.includes("post")) {
+              this.materials.postTrack = child.material;
+            }
+          }
+        });
+      }
+  
+      updateMaterialsDefault() {
+        if (this.materials.sheet) {
+          this.materials.sheet.color.set("#808080");
+          this.materials.sheet.needsUpdate = true;
+        }
+        if (this.materials.postTrack) {
+          this.materials.postTrack.color.set("#808080");
+          this.materials.postTrack.needsUpdate = true;
+        }
+      }
+  
+      resetSelections() {
+        document.getElementById('dropdown-parent').value = this.configurations.length > 0 ? this.configurations[0]["Parent SKU"].trim() : "GC";
+        this.updateSKUOptions();
+        document.getElementById('dropdown-sku').value = "";
+        this.updateSizeOptions();
+        document.getElementById('dropdown-size').value = "";
+        this.updateColorOptions();
+        document.getElementById('dropdown-sheet').value = "";
+        document.getElementById('dropdown-post').value = "";
+  
+        document.getElementById('sku').textContent = "XXXXXXXX";
+        this.updateMaterialsDefault();
+  
+        if (this.model) {
+          this.scene.remove(this.model);
+          this.model = null;
+          this.currentModelFile = null;
+        }
+      }
+  
+      onWindowResize() {
+        const container = document.getElementById('canvas-container');
+        this.camera.aspect = container.clientWidth / container.clientHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
+      }
+  
+      animate() {
+        requestAnimationFrame(this.animate.bind(this));
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+  
+    window.addEventListener('load', () => {
+      new ProductConfigurator();
+    });
+  </script>
+</body>
+</html>'>
+    </iframe>
+  </div>
+</body>
+</html>
