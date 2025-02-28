@@ -107,6 +107,10 @@
     button:hover {
       background: #2980b9;
     }
+    /* Hide elements by default */
+    .hide {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -122,46 +126,72 @@
           SKU: <span id="sku">XXXXXXXX</span>
         </div>
       </div>
-      <!-- Right Column: Cascading Dropdowns -->
+      <!-- Right Column: Dropdown Controls -->
       <div class="controls">
-        <div class="control-group">
+        <!-- Always visible: Parent SKU -->
+        <div class="control-group" id="group-parent">
           <div class="control-header">
             <span class="control-title">Parent SKU</span>
             <select id="dropdown-parent"></select>
           </div>
         </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">SKU</span>
-            <select id="dropdown-sku">
-              <option value="">Select SKU</option>
-            </select>
+  
+        <!-- For non-STEPSSP models -->
+        <div id="nonStepControls">
+          <div class="control-group" id="group-sku">
+            <div class="control-header">
+              <span class="control-title">SKU</span>
+              <select id="dropdown-sku">
+                <option value="">Select SKU</option>
+              </select>
+            </div>
+          </div>
+          <div class="control-group" id="group-size">
+            <div class="control-header">
+              <span class="control-title">Size (m)</span>
+              <select id="dropdown-size">
+                <option value="">Select Size</option>
+              </select>
+            </div>
+          </div>
+          <div class="control-group" id="group-sheet">
+            <div class="control-header">
+              <span class="control-title">Sheet Colour</span>
+              <select id="dropdown-sheet">
+                <option value="">Select Sheet Colour</option>
+              </select>
+            </div>
+          </div>
+          <div class="control-group" id="group-post">
+            <div class="control-header">
+              <span class="control-title">Post Track Colour</span>
+              <select id="dropdown-post">
+                <option value="">Select Post Colour</option>
+              </select>
+            </div>
           </div>
         </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Size (m)</span>
-            <select id="dropdown-size">
-              <option value="">Select Size</option>
-            </select>
+  
+        <!-- For STEPSSP models -->
+        <div id="stepControls" class="hide">
+          <div class="control-group" id="group-frame">
+            <div class="control-header">
+              <span class="control-title">Frame Colour</span>
+              <select id="dropdown-frame">
+                <option value="">Select Frame Colour</option>
+              </select>
+            </div>
+          </div>
+          <div class="control-group" id="group-lattice">
+            <div class="control-header">
+              <span class="control-title">Lattice Colour</span>
+              <select id="dropdown-lattice">
+                <option value="">Select Lattice Colour</option>
+              </select>
+            </div>
           </div>
         </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Sheet Colour</span>
-            <select id="dropdown-sheet">
-              <option value="">Select Sheet Colour</option>
-            </select>
-          </div>
-        </div>
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-title">Post Track Colour</span>
-            <select id="dropdown-post">
-              <option value="">Select Post Colour</option>
-            </select>
-          </div>
-        </div>
+  
         <div class="control-group">
           <button id="reset-config">Reset Configurator</button>
         </div>
@@ -182,13 +212,13 @@
     }
   
     // Helper: Parse the SKU into its parts.
-    // For example, for "GCDGDCTP15BWBW":
-    //   Parent SKU: "GC"
-    //   Identifier: "DGDCTP"
-    //   Size: "15" (which means 1.5m when divided by 10)
-    //   Sheet Colour: "BW"
-    //   Post Track Colour: "BW"
-    function parseSKU(sku) {
+    // For gate models (GC types), the SKU is assumed to be:
+    //   Characters 0-1: Parent SKU (e.g., "GC")
+    //   Characters 2-7: Identifier (e.g., "DGDCTP" or "SGDCTP")
+    //   Characters 8-9: Size (e.g., "15")
+    //   Characters 10-11: Sheet Colour short code
+    //   Characters 12-13: Post Track Colour short code
+    function parseGateSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
         identifier: sku.substring(2,8).trim(),
@@ -204,13 +234,16 @@
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
+        // For gate models, materials for sheet and post track.
         this.materials = { sheet: null, postTrack: null };
+        // For STEPSSP models, materials for frame and lattice.
+        this.stepMaterials = { frame: null, lattice: null };
   
         this.initThreeJS();
   
         this.loadData().then(() => {
           this.initUI();
-          // Do not load any model until all selections are made.
+          // Do not load a model until all required selections are made.
           this.updateConfiguration();
           this.animate();
         });
@@ -292,12 +325,16 @@
       initUI() {
         this.populateParentDropdown();
   
+        // When Parent SKU changes, update UI elements.
         document.getElementById('dropdown-parent').addEventListener('change', () => {
+          this.adjustUIForParent();
           this.updateSKUOptions();
           this.updateSizeOptions();
           this.updateColorOptions();
           this.updateConfiguration();
         });
+  
+        // For gate models.
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
@@ -314,6 +351,14 @@
           this.updateConfiguration();
         });
   
+        // For STEPSSP models.
+        document.getElementById('dropdown-frame').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+        document.getElementById('dropdown-lattice').addEventListener('change', () => {
+          this.updateConfiguration();
+        });
+  
         document.getElementById('reset-config').addEventListener('click', () => {
           this.resetSelections();
         });
@@ -323,20 +368,29 @@
         this.updateColorOptions();
       }
   
-      // Only include Parent SKUs that have at least one configuration whose SKU starts with "GCDGDCTP" or "GCSGDCTP".
+      // Adjust which dropdown groups are visible based on selected Parent SKU.
+      adjustUIForParent() {
+        const parent = document.getElementById('dropdown-parent').value;
+        if (parent === "STEPSSP") {
+          // Hide gate-related controls.
+          document.getElementById('nonStepControls').classList.add("hide");
+          // Show STEPSSP-specific controls.
+          document.getElementById('stepControls').classList.remove("hide");
+        } else {
+          // For other parents, show the normal controls.
+          document.getElementById('nonStepControls').classList.remove("hide");
+          document.getElementById('stepControls').classList.add("hide");
+        }
+      }
+  
+      // Populate Parent SKU dropdown from configurations.
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
-  
         if (this.configurations.length > 0) {
           const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
-          const validParents = uniqueParents.filter(parent => {
-            return this.configurations.some(cfg => {
-              return cfg["Parent SKU"].trim() === parent &&
-                     (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"));
-            });
-          });
-          validParents.forEach(parent => {
+          // All parents that have at least one valid configuration.
+          uniqueParents.forEach(parent => {
             const option = document.createElement('option');
             option.value = parent;
             option.textContent = parent;
@@ -350,22 +404,24 @@
         }
       }
   
-      // Only include SKU options if the configuration’s SKU starts with "GCDGDCTP" or "GCSGDCTP".
+      // For gate models.
       updateSKUOptions() {
         const parent = document.getElementById('dropdown-parent').value;
+        // Only update if not STEPSSP.
+        if (parent === "STEPSSP") return;
+  
         const select = document.getElementById('dropdown-sku');
         select.innerHTML = "";
-  
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => 
+        const filtered = this.configurations.filter(cfg =>
           cfg["Parent SKU"].trim() === parent &&
           (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
         );
-        const uniqueSKU = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).identifier))];
+        const uniqueSKU = [...new Set(filtered.map(cfg => parseGateSKU(cfg["SKU"]).identifier))];
         uniqueSKU.forEach(sku => {
           const option = document.createElement('option');
           option.value = sku;
@@ -382,20 +438,21 @@
   
       updateSizeOptions() {
         const parent = document.getElementById('dropdown-parent').value;
+        if (parent === "STEPSSP") return; // Not applicable.
+  
         const sku = document.getElementById('dropdown-sku').value;
         const select = document.getElementById('dropdown-size');
         select.innerHTML = "";
-  
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "Select Size";
         select.appendChild(placeholder);
   
         const filtered = this.configurations.filter(cfg => {
-          const parsed = parseSKU(cfg["SKU"]);
+          const parsed = parseGateSKU(cfg["SKU"]);
           return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
         });
-        const uniqueSizes = [...new Set(filtered.map(cfg => parseSKU(cfg["SKU"]).size))];
+        const uniqueSizes = [...new Set(filtered.map(cfg => parseGateSKU(cfg["SKU"]).size))];
         uniqueSizes.sort();
         uniqueSizes.forEach(sizeCode => {
           const option = document.createElement('option');
@@ -405,8 +462,15 @@
         });
       }
   
+      // For gate models.
       updateColorOptions() {
         const parent = document.getElementById('dropdown-parent').value;
+        if (parent === "STEPSSP") {
+          // For STEPSSP models, update frame and lattice colour dropdowns.
+          this.updateFrameLatticeOptions();
+          return;
+        }
+  
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
   
@@ -425,7 +489,7 @@
         postSelect.appendChild(postPlaceholder);
   
         const filtered = this.configurations.filter(cfg => {
-          const parsed = parseSKU(cfg["SKU"]);
+          const parsed = parseGateSKU(cfg["SKU"]);
           return cfg["Parent SKU"].trim() === parent &&
                  parsed.identifier === sku &&
                  parsed.size === sizeCode;
@@ -448,22 +512,88 @@
         });
       }
   
+      // For STEPSSP models.
+      updateFrameLatticeOptions() {
+        const parent = document.getElementById('dropdown-parent').value;
+        if (parent !== "STEPSSP") return;
+  
+        const frameSelect = document.getElementById('dropdown-frame');
+        frameSelect.innerHTML = "";
+        const framePlaceholder = document.createElement('option');
+        framePlaceholder.value = "";
+        framePlaceholder.textContent = "Select Frame Colour";
+        frameSelect.appendChild(framePlaceholder);
+  
+        const latticeSelect = document.getElementById('dropdown-lattice');
+        latticeSelect.innerHTML = "";
+        const latticePlaceholder = document.createElement('option');
+        latticePlaceholder.value = "";
+        latticePlaceholder.textContent = "Select Lattice Colour";
+        latticeSelect.appendChild(latticePlaceholder);
+  
+        // Filter STEPSSP configurations.
+        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === "STEPSSP");
+        // For STEPSSP, use "Frame Colour" and "Lattice Colour" properties.
+        const uniqueFrame = [...new Set(filtered.map(cfg => cfg["Frame Colour"]).filter(val => val))];
+        uniqueFrame.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          frameSelect.appendChild(option);
+        });
+  
+        const uniqueLattice = [...new Set(filtered.map(cfg => cfg["Lattice Colour"]).filter(val => val))];
+        uniqueLattice.forEach(color => {
+          const option = document.createElement('option');
+          option.value = color;
+          option.textContent = color;
+          latticeSelect.appendChild(option);
+        });
+      }
+  
       updateConfiguration() {
         const parent = document.getElementById('dropdown-parent').value;
+  
+        // If parent is STEPSSP, we build the SKU from STEPSSP + frame short code + lattice short code.
+        if (parent === "STEPSSP") {
+          const frameColor = document.getElementById('dropdown-frame').value;
+          const latticeColor = document.getElementById('dropdown-lattice').value;
+          const framePart = frameColor ? (getShortCode(frameColor) || "XX") : "XX";
+          const latticePart = latticeColor ? (getShortCode(latticeColor) || "XX") : "XX";
+          const fullSKU = parent + framePart + latticePart;
+          document.getElementById('sku').textContent = fullSKU;
+  
+          // Load the STEPSSP model if not already loaded.
+          if (!this.model || this.currentModelFile !== "models/STEPSSP.glb") {
+            this.loadStepModel("models/STEPSSP.glb");
+          }
+  
+          // Update material colours for frame and lattice.
+          if (this.stepMaterials.frame) {
+            const frameColorObj = this.colorMapping.find(c => c["Colour"] === frameColor);
+            this.stepMaterials.frame.color.set(frameColorObj ? frameColorObj["Hex"] : "#808080");
+            this.stepMaterials.frame.needsUpdate = true;
+          }
+          if (this.stepMaterials.lattice) {
+            const latticeColorObj = this.colorMapping.find(c => c["Colour"] === latticeColor);
+            this.stepMaterials.lattice.color.set(latticeColorObj ? latticeColorObj["Hex"] : "#808080");
+            this.stepMaterials.lattice.needsUpdate = true;
+          }
+  
+          return;
+        }
+  
+        // Otherwise, for gate models.
         const sku = document.getElementById('dropdown-sku').value;
         const sizeCode = document.getElementById('dropdown-size').value;
         const sheetColor = document.getElementById('dropdown-sheet').value;
         const postColor = document.getElementById('dropdown-post').value;
   
-        console.log("updateConfiguration:", { parent, sku, sizeCode, sheetColor, postColor });
-  
-        // Update SKU display.
         const identifier = sku || "XXXXXX";
         const sizePart = sizeCode || "XX";
         const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
         const postPart = postColor ? (getShortCode(postColor) || "XX") : "XX";
-  
-        const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
+        const fullSKU = document.getElementById('dropdown-parent').value + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
         // Only load a model if Parent, SKU, and Size are selected.
@@ -476,15 +606,10 @@
           return;
         }
   
-        // Apply a default grey material to any loaded model so something is visible.
-        if (this.model) {
-          this.applyDefaultGreyToModel();
-        }
-  
-        // Find a matching configuration to determine model prefix.
-        const configMatch = this.configurations.find(cfg => 
-          cfg["Parent SKU"].trim() === parent && 
-          parseSKU(cfg["SKU"]).identifier === sku
+        // For gate models, determine model prefix using a matching configuration.
+        const configMatch = this.configurations.find(cfg =>
+          cfg["Parent SKU"].trim() === parent &&
+          parseGateSKU(cfg["SKU"]).identifier === sku
         );
         let modelPrefix = "";
         if (configMatch) {
@@ -494,14 +619,11 @@
             modelPrefix = "GCSG";
           }
         }
-        console.log("modelPrefix:", modelPrefix);
   
         if (modelPrefix) {
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
           let defaultModelFile = "models/" + modelPrefix + ".glb";
-          console.log("Candidate Model:", candidateModelFile, "Default Model:", defaultModelFile);
           const scaleValue = parseInt(sizeCode) / 10;
-  
           if (this.currentModelFile !== candidateModelFile) {
             this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
           } else if (this.model) {
@@ -511,7 +633,7 @@
           }
         }
   
-        // Update material colours.
+        // Update material colours for gate models.
         if (this.materials.sheet) {
           const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
           this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
@@ -524,24 +646,32 @@
         }
       }
   
-      // Traverse the model and set all mesh materials to a default grey.
-      applyDefaultGreyToModel() {
-        this.model.traverse(child => {
-          if (child.isMesh && child.material) {
-            child.material.color.set("#808080");
-            child.material.needsUpdate = true;
+      // Load STEPSSP model.
+      loadStepModel(modelFile) {
+        const loader = new THREE.GLTFLoader();
+        loader.load(modelFile, (gltf) => {
+          if (this.model) {
+            this.scene.remove(this.model);
           }
+          this.model = gltf.scene;
+          // For STEPSSP models, we assume native size.
+          this.model.scale.set(1, 1, 1);
+          this.scene.add(this.model);
+          this.currentModelFile = modelFile;
+          this.applyStepModelMaterials();
+          this.updateConfiguration();
+        }, undefined, (error) => {
+          console.error("Error loading STEPSSP model:", error);
         });
       }
   
       loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
         loader.load(candidateModelFile, (gltf) => {
-          console.log("Loaded candidate model:", candidateModelFile);
           if (this.model) {
             this.scene.remove(this.model);
           }
-          // Use candidate model at native size.
+          // Candidate model loaded successfully; use its native size.
           this.model = gltf.scene;
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
@@ -553,19 +683,13 @@
         });
       }
   
-      loadDefaultModel() {
-        this.loadModel("models/GCDG.glb", 1);
-      }
-  
       loadModel(modelFile, scaleValue) {
         const loader = new THREE.GLTFLoader();
         loader.load(modelFile, (gltf) => {
-          console.log("Loaded default model:", modelFile);
           if (this.model) {
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // Apply scaling to default models.
           this.model.scale.set(scaleValue, scaleValue, scaleValue);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
@@ -576,8 +700,10 @@
         });
       }
   
+      // For gate models: assign materials for sheet and post.
       applyModelMaterials() {
-        // Traverse the model and assign materials for sheet and post.
+        this.materials.sheet = null;
+        this.materials.postTrack = null;
         this.model.traverse(child => {
           if (child.isMesh && child.material) {
             child.castShadow = true;
@@ -594,6 +720,46 @@
         });
       }
   
+      // For STEPSSP models: assign materials for frame and lattice.
+      applyStepModelMaterials() {
+        this.stepMaterials.frame = null;
+        this.stepMaterials.lattice = null;
+        this.model.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.castShadow = true;
+            const name = child.material.name.toLowerCase();
+            if (name.includes("frame")) {
+              this.stepMaterials.frame = child.material;
+            } else if (name.includes("lattice")) {
+              this.stepMaterials.lattice = child.material;
+            }
+          }
+        });
+      }
+  
+      resetSelections() {
+        document.getElementById('dropdown-parent').value = this.configurations.length > 0 ? this.configurations[0]["Parent SKU"].trim() : "GC";
+        this.adjustUIForParent();
+        if (document.getElementById('dropdown-parent').value === "STEPSSP") {
+          document.getElementById('dropdown-frame').value = "";
+          document.getElementById('dropdown-lattice').value = "";
+        } else {
+          document.getElementById('dropdown-sku').value = "";
+          this.updateSizeOptions();
+          document.getElementById('dropdown-size').value = "";
+          document.getElementById('dropdown-sheet').value = "";
+          document.getElementById('dropdown-post').value = "";
+        }
+        document.getElementById('sku').textContent = "XXXXXXXX";
+        this.updateMaterialsDefault();
+  
+        if (this.model) {
+          this.scene.remove(this.model);
+          this.model = null;
+          this.currentModelFile = null;
+        }
+      }
+  
       updateMaterialsDefault() {
         if (this.materials.sheet) {
           this.materials.sheet.color.set("#808080");
@@ -603,25 +769,13 @@
           this.materials.postTrack.color.set("#808080");
           this.materials.postTrack.needsUpdate = true;
         }
-      }
-  
-      resetSelections() {
-        document.getElementById('dropdown-parent').value = this.configurations.length > 0 ? this.configurations[0]["Parent SKU"].trim() : "GC";
-        this.updateSKUOptions();
-        document.getElementById('dropdown-sku').value = "";
-        this.updateSizeOptions();
-        document.getElementById('dropdown-size').value = "";
-        this.updateColorOptions();
-        document.getElementById('dropdown-sheet').value = "";
-        document.getElementById('dropdown-post').value = "";
-  
-        document.getElementById('sku').textContent = "XXXXXXXX";
-        this.updateMaterialsDefault();
-  
-        if (this.model) {
-          this.scene.remove(this.model);
-          this.model = null;
-          this.currentModelFile = null;
+        if (this.stepMaterials.frame) {
+          this.stepMaterials.frame.color.set("#808080");
+          this.stepMaterials.frame.needsUpdate = true;
+        }
+        if (this.stepMaterials.lattice) {
+          this.stepMaterials.lattice.color.set("#808080");
+          this.stepMaterials.lattice.needsUpdate = true;
         }
       }
   
