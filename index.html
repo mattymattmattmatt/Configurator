@@ -107,7 +107,6 @@
     button:hover {
       background: #2980b9;
     }
-    /* Hide elements by default */
     .hide {
       display: none;
     }
@@ -174,7 +173,7 @@
           </div>
         </div>
   
-        <!-- Controls for STEP‑type models (STEPSSP, STEPSUP, STEPWAV) -->
+        <!-- Controls for STEP-type models -->
         <div id="stepControls" class="hide">
           <div class="control-group" id="group-frame">
             <div class="control-header">
@@ -213,13 +212,7 @@
       return mapping ? mapping["Short Code"] : "";
     }
   
-    // For gate models, parse the SKU into parts.
-    // For example, for "GCDGDCTP15BWBW":
-    //   Parent SKU: "GC"
-    //   Identifier: "DGDCTP"
-    //   Size: "15"  (1.5m when divided by 10)
-    //   Sheet Colour: "BW"
-    //   Post Track Colour: "BW"
+    // For gate models, parse the SKU.
     function parseGateSKU(sku) {
       return {
         parent: sku.substring(0,2).trim(),
@@ -236,16 +229,13 @@
         this.colorMapping = [];
         this.currentModelFile = null;
         this.model = null;
-        // For gate models.
         this.materials = { sheet: null, postTrack: null };
-        // For STEP‑type models.
         this.stepMaterials = { frame: null, lattice: null };
   
         this.initThreeJS();
   
         this.loadData().then(() => {
           this.initUI();
-          // No model is loaded until a complete selection is made.
           this.updateConfiguration();
           this.animate();
         });
@@ -284,7 +274,6 @@
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000, 0);
   
-        // Set camera position.
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
   
@@ -304,7 +293,6 @@
         directionalLight2.position.set(3.2, 5, -3.8);
         this.scene.add(directionalLight2);
   
-        // Floor: circular mesh with a 5m radius (10m diameter).
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -326,7 +314,6 @@
   
       initUI() {
         this.populateParentDropdown();
-        // Adjust the UI based on the initial (empty) selection.
         this.adjustUIForParent();
   
         document.getElementById('dropdown-parent').addEventListener('change', () => {
@@ -337,7 +324,6 @@
           this.updateConfiguration();
         });
   
-        // For gate models.
         document.getElementById('dropdown-sku').addEventListener('change', () => {
           this.updateSizeOptions();
           this.updateColorOptions();
@@ -354,7 +340,6 @@
           this.updateConfiguration();
         });
   
-        // For STEP‑type models.
         document.getElementById('dropdown-frame').addEventListener('change', () => {
           this.updateConfiguration();
         });
@@ -371,7 +356,6 @@
         this.updateColorOptions();
       }
   
-      // Populate Parent SKU dropdown with a placeholder.
       populateParentDropdown() {
         const select = document.getElementById('dropdown-parent');
         select.innerHTML = "";
@@ -391,17 +375,15 @@
         }
       }
   
-      // Adjust visible dropdown groups based on selected Parent SKU.
       adjustUIForParent() {
         const parent = document.getElementById('dropdown-parent').value;
-        // If no parent is selected, hide both groups.
         if (!parent) {
           document.getElementById('nonStepControls').classList.add("hide");
           document.getElementById('stepControls').classList.add("hide");
           return;
         }
-        // For STEP‑type models.
-        if (["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) {
+        // Include STEPCGM along with other STEP types.
+        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
           document.getElementById('stepControls').classList.remove("hide");
           document.getElementById('nonStepControls').classList.add("hide");
         } else {
@@ -410,11 +392,9 @@
         }
       }
   
-      // For gate models.
       updateSKUOptions() {
         const parent = document.getElementById('dropdown-parent').value;
-        // Only update if this is not a STEP‑type model.
-        if (["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) return;
+        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
   
         const select = document.getElementById('dropdown-sku');
         select.innerHTML = "";
@@ -423,7 +403,7 @@
         placeholder.textContent = "Select SKU";
         select.appendChild(placeholder);
   
-        const filtered = this.configurations.filter(cfg => 
+        const filtered = this.configurations.filter(cfg =>
           cfg["Parent SKU"].trim() === parent &&
           (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
         );
@@ -444,7 +424,7 @@
   
       updateSizeOptions() {
         const parent = document.getElementById('dropdown-parent').value;
-        if (["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) return; // Not applicable.
+        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
   
         const sku = document.getElementById('dropdown-sku').value;
         const select = document.getElementById('dropdown-size');
@@ -470,7 +450,7 @@
   
       updateColorOptions() {
         const parent = document.getElementById('dropdown-parent').value;
-        if (["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) {
+        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
           this.updateFrameLatticeOptions();
           return;
         }
@@ -516,10 +496,9 @@
         });
       }
   
-      // For STEP‑type models.
       updateFrameLatticeOptions() {
         const parent = document.getElementById('dropdown-parent').value;
-        if (!["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) return;
+        if (!["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
   
         const frameSelect = document.getElementById('dropdown-frame');
         frameSelect.innerHTML = "";
@@ -555,8 +534,6 @@
   
       updateConfiguration() {
         const parent = document.getElementById('dropdown-parent').value;
-  
-        // If parent is not selected, clear model and SKU display.
         if (!parent) {
           document.getElementById('sku').textContent = "XXXXXXXX";
           if (this.model) {
@@ -567,8 +544,7 @@
           return;
         }
   
-        // If parent is a STEP‑type, build SKU as: Parent + frame short code + lattice short code.
-        if (["STEPSSP", "STEPSUP", "STEPWAV"].includes(parent)) {
+        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
           const frameColor = document.getElementById('dropdown-frame').value;
           const latticeColor = document.getElementById('dropdown-lattice').value;
           const framePart = frameColor ? (getShortCode(frameColor) || "XX") : "XX";
@@ -576,12 +552,10 @@
           const fullSKU = parent + framePart + latticePart;
           document.getElementById('sku').textContent = fullSKU;
   
-          // Load STEP model if not already loaded.
           if (!this.model || this.currentModelFile !== "models/" + parent + ".glb") {
             this.loadStepModel("models/" + parent + ".glb");
           }
   
-          // Update STEP model material colours.
           if (this.stepMaterials.frame) {
             const frameColorObj = this.colorMapping.find(c => c["Colour"] === frameColor);
             this.stepMaterials.frame.color.set(frameColorObj ? frameColorObj["Hex"] : "#808080");
@@ -608,7 +582,6 @@
         const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
         document.getElementById('sku').textContent = fullSKU;
   
-        // Only load a model if Parent, SKU, and Size are selected.
         if (!parent || !sku || !sizeCode) {
           if (this.model) {
             this.scene.remove(this.model);
@@ -618,8 +591,7 @@
           return;
         }
   
-        // For gate models, determine model prefix from a matching configuration.
-        const configMatch = this.configurations.find(cfg => 
+        const configMatch = this.configurations.find(cfg =>
           cfg["Parent SKU"].trim() === parent &&
           parseGateSKU(cfg["SKU"]).identifier === sku
         );
@@ -645,7 +617,6 @@
           }
         }
   
-        // Update material colours for gate models.
         if (this.materials.sheet) {
           const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
           this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
@@ -658,7 +629,6 @@
         }
       }
   
-      // Load a STEP‑type model.
       loadStepModel(modelFile) {
         const loader = new THREE.GLTFLoader();
         loader.load(modelFile, (gltf) => {
@@ -666,7 +636,6 @@
             this.scene.remove(this.model);
           }
           this.model = gltf.scene;
-          // STEP models are used at native size.
           this.model.scale.set(1, 1, 1);
           this.scene.add(this.model);
           this.currentModelFile = modelFile;
@@ -684,7 +653,6 @@
           if (this.model) {
             this.scene.remove(this.model);
           }
-          // Use candidate model at its native size.
           this.model = gltf.scene;
           this.scene.add(this.model);
           this.currentModelFile = candidateModelFile;
@@ -714,7 +682,6 @@
         });
       }
   
-      // For gate models.
       applyModelMaterials() {
         this.materials.sheet = null;
         this.materials.postTrack = null;
@@ -734,7 +701,6 @@
         });
       }
   
-      // For STEP‑type models.
       applyStepModelMaterials() {
         this.stepMaterials.frame = null;
         this.stepMaterials.lattice = null;
@@ -773,7 +739,6 @@
       resetSelections() {
         document.getElementById('dropdown-parent').value = "";
         this.adjustUIForParent();
-        // Clear other dropdowns.
         if (document.getElementById('dropdown-sku')) {
           document.getElementById('dropdown-sku').value = "";
         }
