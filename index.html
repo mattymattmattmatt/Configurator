@@ -605,18 +605,18 @@
           }
         }
   
-        if (modelPrefix) {
-          let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-          let defaultModelFile = "models/" + modelPrefix + ".glb";
-          const scaleValue = parseInt(sizeCode) / 10;
-          if (this.currentModelFile !== candidateModelFile && this.currentModelFile !== defaultModelFile) {
-            this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
-          } else if (this.model) {
-            if (this.currentModelFile === defaultModelFile) {
-              this.model.scale.set(scaleValue, scaleValue, scaleValue);
+          if (modelPrefix) {
+            let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
+            let defaultModelFile = "models/" + modelPrefix + ".glb";
+            const scaleValue = parseInt(sizeCode) / 10;
+            if (this.currentModelFile !== candidateModelFile) {
+              this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
+            } else if (this.model) {
+              if (this.currentModelFile === defaultModelFile) {
+                this.model.scale.set(scaleValue, scaleValue, scaleValue);
+              }
             }
           }
-        }
   
         if (this.materials.sheet) {
           const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
