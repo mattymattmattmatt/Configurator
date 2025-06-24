@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Product Configurator</title>
+  <link rel="icon" href="favicon.ico">
   <style>
     :root {
       --primary: #2c3e50;
@@ -608,7 +609,7 @@
           let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
           let defaultModelFile = "models/" + modelPrefix + ".glb";
           const scaleValue = parseInt(sizeCode) / 10;
-          if (this.currentModelFile !== candidateModelFile) {
+          if (this.currentModelFile !== candidateModelFile && this.currentModelFile !== defaultModelFile) {
             this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
           } else if (this.model) {
             if (this.currentModelFile === defaultModelFile) {
