@@ -167,7 +167,8 @@
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
         </div>
-        <div class="control-group light-panel">
+        <button id="toggle-lighting">Show Lighting Controls</button>
+        <div class="control-group light-panel hide" id="lighting-panel">
           <div class="control-header">
             <span class="control-title">Environment Lighting</span>
             <p class="control-subtitle">Fine-tune the studio lighting around your model.</p>
@@ -184,30 +185,6 @@
             <label class="slider-label">Fill Light Power
               <input type="range" id="fill-intensity" min="0" max="2" step="0.05">
               <span class="slider-value" id="fill-intensity-value"></span>
-            </label>
-            <label class="slider-label">Key X
-              <input type="range" id="key-x" min="-10" max="10" step="0.1">
-              <span class="slider-value" id="key-x-value"></span>
-            </label>
-            <label class="slider-label">Key Y
-              <input type="range" id="key-y" min="0" max="12" step="0.1">
-              <span class="slider-value" id="key-y-value"></span>
-            </label>
-            <label class="slider-label">Key Z
-              <input type="range" id="key-z" min="-10" max="10" step="0.1">
-              <span class="slider-value" id="key-z-value"></span>
-            </label>
-            <label class="slider-label">Fill X
-              <input type="range" id="fill-x" min="-10" max="10" step="0.1">
-              <span class="slider-value" id="fill-x-value"></span>
-            </label>
-            <label class="slider-label">Fill Y
-              <input type="range" id="fill-y" min="0" max="12" step="0.1">
-              <span class="slider-value" id="fill-y-value"></span>
-            </label>
-            <label class="slider-label">Fill Z
-              <input type="range" id="fill-z" min="-10" max="10" step="0.1">
-              <span class="slider-value" id="fill-z-value"></span>
             </label>
           </div>
         </div>
@@ -427,24 +404,14 @@
         const keyIntensity = Number(document.getElementById('key-intensity').value || this.lightDefaults.key.intensity);
         const fillIntensity = Number(document.getElementById('fill-intensity').value || this.lightDefaults.fill.intensity);
 
-        const keyX = Number(document.getElementById('key-x').value || this.lightDefaults.key.x);
-        const keyY = Number(document.getElementById('key-y').value || this.lightDefaults.key.y);
-        const keyZ = Number(document.getElementById('key-z').value || this.lightDefaults.key.z);
-
-        const fillX = Number(document.getElementById('fill-x').value || this.lightDefaults.fill.x);
-        const fillY = Number(document.getElementById('fill-y').value || this.lightDefaults.fill.y);
-        const fillZ = Number(document.getElementById('fill-z').value || this.lightDefaults.fill.z);
-
         if (this.lights.ambient) {
           this.lights.ambient.intensity = ambient;
         }
         if (this.lights.key) {
           this.lights.key.intensity = keyIntensity;
-          this.lights.key.position.set(keyX, keyY, keyZ);
         }
         if (this.lights.fill) {
           this.lights.fill.intensity = fillIntensity;
-          this.lights.fill.position.set(fillX, fillY, fillZ);
         }
       }
   
@@ -488,6 +455,7 @@
         });
 
         this.initLightControls();
+        this.initLightingPanelToggle();
         this.updateSKUOptions();
         this.updateSizeOptions();
         this.updateColorOptions();
@@ -497,13 +465,7 @@
         const sliderConfigs = [
           { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
           { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
-          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 },
-          { id: 'key-x', value: this.lightDefaults.key.x, digits: 1 },
-          { id: 'key-y', value: this.lightDefaults.key.y, digits: 1 },
-          { id: 'key-z', value: this.lightDefaults.key.z, digits: 1 },
-          { id: 'fill-x', value: this.lightDefaults.fill.x, digits: 1 },
-          { id: 'fill-y', value: this.lightDefaults.fill.y, digits: 1 },
-          { id: 'fill-z', value: this.lightDefaults.fill.z, digits: 1 }
+          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 }
         ];
 
         sliderConfigs.forEach(cfg => {
@@ -521,6 +483,25 @@
         });
 
         this.applyLightSettings();
+      }
+
+      initLightingPanelToggle() {
+        const toggleButton = document.getElementById('toggle-lighting');
+        const panel = document.getElementById('lighting-panel');
+        if (!toggleButton || !panel) return;
+
+        const updateLabel = () => {
+          toggleButton.textContent = panel.classList.contains('hide')
+            ? 'Show Lighting Controls'
+            : 'Hide Lighting Controls';
+        };
+
+        toggleButton.addEventListener('click', () => {
+          panel.classList.toggle('hide');
+          updateLabel();
+        });
+
+        updateLabel();
       }
   
       populateParentDropdown() {
@@ -937,13 +918,7 @@
         const sliderDefaults = [
           { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
           { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
-          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 },
-          { id: 'key-x', value: this.lightDefaults.key.x, digits: 1 },
-          { id: 'key-y', value: this.lightDefaults.key.y, digits: 1 },
-          { id: 'key-z', value: this.lightDefaults.key.z, digits: 1 },
-          { id: 'fill-x', value: this.lightDefaults.fill.x, digits: 1 },
-          { id: 'fill-y', value: this.lightDefaults.fill.y, digits: 1 },
-          { id: 'fill-z', value: this.lightDefaults.fill.z, digits: 1 }
+          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 }
         ];
         sliderDefaults.forEach(cfg => {
           const input = document.getElementById(cfg.id);
