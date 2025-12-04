@@ -61,6 +61,11 @@
       flex-direction: column;
       gap: 1rem;
     }
+    .inline-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
     .control-group {
       background: #fff;
       padding: 1rem;
@@ -78,6 +83,11 @@
       font-size: 0.9rem;
       font-weight: 600;
       color: var(--primary);
+    }
+    .control-subtitle {
+      font-size: 0.85rem;
+      color: #6c7a89;
+      margin-top: 0.15rem;
     }
     .sku-display {
       background: var(--primary);
@@ -111,6 +121,41 @@
     .hide {
       display: none;
     }
+    .light-panel {
+      border: 1px solid #e3e9ef;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      background: linear-gradient(145deg, #f8fafc, #eef2f7);
+    }
+    .light-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem 1rem;
+      margin-top: 0.75rem;
+    }
+    .light-grid .full-row {
+      grid-column: 1 / -1;
+    }
+    .slider-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+    .slider-value {
+      min-width: 2.6rem;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--secondary);
+      height: 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+    }
   </style>
 </head>
 <body>
@@ -121,6 +166,50 @@
       <div class="model-container">
         <div id="canvas-container">
           <canvas id="product-canvas"></canvas>
+        </div>
+        <div class="control-group light-panel">
+          <div class="control-header">
+            <span class="control-title">Environment Lighting</span>
+            <p class="control-subtitle">Fine-tune the studio lighting around your model.</p>
+          </div>
+          <div class="light-grid">
+            <label class="slider-label full-row">Ambient Power
+              <input type="range" id="ambient-intensity" min="0" max="2" step="0.05">
+              <span class="slider-value" id="ambient-intensity-value"></span>
+            </label>
+            <label class="slider-label">Key Light Power
+              <input type="range" id="key-intensity" min="0" max="2" step="0.05">
+              <span class="slider-value" id="key-intensity-value"></span>
+            </label>
+            <label class="slider-label">Fill Light Power
+              <input type="range" id="fill-intensity" min="0" max="2" step="0.05">
+              <span class="slider-value" id="fill-intensity-value"></span>
+            </label>
+            <label class="slider-label">Key X
+              <input type="range" id="key-x" min="-10" max="10" step="0.1">
+              <span class="slider-value" id="key-x-value"></span>
+            </label>
+            <label class="slider-label">Key Y
+              <input type="range" id="key-y" min="0" max="12" step="0.1">
+              <span class="slider-value" id="key-y-value"></span>
+            </label>
+            <label class="slider-label">Key Z
+              <input type="range" id="key-z" min="-10" max="10" step="0.1">
+              <span class="slider-value" id="key-z-value"></span>
+            </label>
+            <label class="slider-label">Fill X
+              <input type="range" id="fill-x" min="-10" max="10" step="0.1">
+              <span class="slider-value" id="fill-x-value"></span>
+            </label>
+            <label class="slider-label">Fill Y
+              <input type="range" id="fill-y" min="0" max="12" step="0.1">
+              <span class="slider-value" id="fill-y-value"></span>
+            </label>
+            <label class="slider-label">Fill Z
+              <input type="range" id="fill-z" min="-10" max="10" step="0.1">
+              <span class="slider-value" id="fill-z-value"></span>
+            </label>
+          </div>
         </div>
         <div class="sku-display">
           SKU: <span id="sku">XXXXXXXX</span>
@@ -232,9 +321,15 @@
         this.model = null;
         this.materials = { sheet: null, postTrack: null };
         this.stepMaterials = { frame: null, lattice: null };
-  
+        this.lights = { ambient: null, key: null, fill: null };
+        this.lightDefaults = {
+          ambientIntensity: 0.6,
+          key: { x: -3.2, y: 5, z: 3.8, intensity: 1.0 },
+          fill: { x: 3.2, y: 5, z: -3.8, intensity: 1.0 }
+        };
+
         this.initThreeJS();
-  
+
         this.loadData().then(() => {
           this.initUI();
           this.updateConfiguration();
@@ -277,23 +372,37 @@
   
         this.camera.position.set(-3.2, 3, 3.8);
         this.camera.lookAt(0, 0, 0);
-  
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, this.lightDefaults.ambientIntensity);
         this.scene.add(ambientLight);
-  
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight1.position.set(-3.2, 5, 3.8);
+
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, this.lightDefaults.key.intensity);
+        directionalLight1.position.set(
+          this.lightDefaults.key.x,
+          this.lightDefaults.key.y,
+          this.lightDefaults.key.z
+        );
         directionalLight1.castShadow = true;
         directionalLight1.shadow.mapSize.width = 1024;
         directionalLight1.shadow.mapSize.height = 1024;
         directionalLight1.shadow.camera.near = 0.5;
         directionalLight1.shadow.camera.far = 50;
         this.scene.add(directionalLight1);
-  
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
-        directionalLight2.position.set(3.2, 5, -3.8);
+
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, this.lightDefaults.fill.intensity);
+        directionalLight2.position.set(
+          this.lightDefaults.fill.x,
+          this.lightDefaults.fill.y,
+          this.lightDefaults.fill.z
+        );
         this.scene.add(directionalLight2);
-  
+
+        this.lights = {
+          ambient: ambientLight,
+          key: directionalLight1,
+          fill: directionalLight2
+        };
+
         const floorGeometry = new THREE.CircleGeometry(5, 32);
         const floorMaterial = new THREE.MeshStandardMaterial({
           color: 0x808080,
@@ -311,6 +420,32 @@
   
         window.addEventListener('resize', this.onWindowResize.bind(this));
         this.onWindowResize();
+      }
+
+      applyLightSettings() {
+        const ambient = Number(document.getElementById('ambient-intensity').value || this.lightDefaults.ambientIntensity);
+        const keyIntensity = Number(document.getElementById('key-intensity').value || this.lightDefaults.key.intensity);
+        const fillIntensity = Number(document.getElementById('fill-intensity').value || this.lightDefaults.fill.intensity);
+
+        const keyX = Number(document.getElementById('key-x').value || this.lightDefaults.key.x);
+        const keyY = Number(document.getElementById('key-y').value || this.lightDefaults.key.y);
+        const keyZ = Number(document.getElementById('key-z').value || this.lightDefaults.key.z);
+
+        const fillX = Number(document.getElementById('fill-x').value || this.lightDefaults.fill.x);
+        const fillY = Number(document.getElementById('fill-y').value || this.lightDefaults.fill.y);
+        const fillZ = Number(document.getElementById('fill-z').value || this.lightDefaults.fill.z);
+
+        if (this.lights.ambient) {
+          this.lights.ambient.intensity = ambient;
+        }
+        if (this.lights.key) {
+          this.lights.key.intensity = keyIntensity;
+          this.lights.key.position.set(keyX, keyY, keyZ);
+        }
+        if (this.lights.fill) {
+          this.lights.fill.intensity = fillIntensity;
+          this.lights.fill.position.set(fillX, fillY, fillZ);
+        }
       }
   
       initUI() {
@@ -351,10 +486,41 @@
         document.getElementById('reset-config').addEventListener('click', () => {
           this.resetSelections();
         });
-  
+
+        this.initLightControls();
         this.updateSKUOptions();
         this.updateSizeOptions();
         this.updateColorOptions();
+      }
+
+      initLightControls() {
+        const sliderConfigs = [
+          { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
+          { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
+          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 },
+          { id: 'key-x', value: this.lightDefaults.key.x, digits: 1 },
+          { id: 'key-y', value: this.lightDefaults.key.y, digits: 1 },
+          { id: 'key-z', value: this.lightDefaults.key.z, digits: 1 },
+          { id: 'fill-x', value: this.lightDefaults.fill.x, digits: 1 },
+          { id: 'fill-y', value: this.lightDefaults.fill.y, digits: 1 },
+          { id: 'fill-z', value: this.lightDefaults.fill.z, digits: 1 }
+        ];
+
+        sliderConfigs.forEach(cfg => {
+          const input = document.getElementById(cfg.id);
+          const valueLabel = document.getElementById(`${cfg.id}-value`);
+          if (input && valueLabel) {
+            input.value = cfg.value;
+            valueLabel.textContent = Number(cfg.value).toFixed(cfg.digits);
+            input.addEventListener('input', () => {
+              const currentValue = Number(input.value);
+              valueLabel.textContent = currentValue.toFixed(cfg.digits);
+              this.applyLightSettings();
+            });
+          }
+        });
+
+        this.applyLightSettings();
       }
   
       populateParentDropdown() {
@@ -767,6 +933,27 @@
           this.model = null;
           this.currentModelFile = null;
         }
+
+        const sliderDefaults = [
+          { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
+          { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
+          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 },
+          { id: 'key-x', value: this.lightDefaults.key.x, digits: 1 },
+          { id: 'key-y', value: this.lightDefaults.key.y, digits: 1 },
+          { id: 'key-z', value: this.lightDefaults.key.z, digits: 1 },
+          { id: 'fill-x', value: this.lightDefaults.fill.x, digits: 1 },
+          { id: 'fill-y', value: this.lightDefaults.fill.y, digits: 1 },
+          { id: 'fill-z', value: this.lightDefaults.fill.z, digits: 1 }
+        ];
+        sliderDefaults.forEach(cfg => {
+          const input = document.getElementById(cfg.id);
+          const valueLabel = document.getElementById(`${cfg.id}-value`);
+          if (input && valueLabel) {
+            input.value = cfg.value;
+            valueLabel.textContent = Number(cfg.value).toFixed(cfg.digits);
+          }
+        });
+        this.applyLightSettings();
       }
   
       onWindowResize() {
