@@ -174,17 +174,17 @@
             <p class="control-subtitle">Fine-tune the studio lighting around your model.</p>
           </div>
           <div class="light-grid">
-            <label class="slider-label full-row">Ambient Power
-              <input type="range" id="ambient-intensity" min="0" max="2" step="0.05">
-              <span class="slider-value" id="ambient-intensity-value"></span>
+            <label class="slider-label full-row">Sun Brightness
+              <input type="range" id="sun-brightness" min="0" max="3" step="0.05">
+              <span class="slider-value" id="sun-brightness-value"></span>
             </label>
-            <label class="slider-label">Key Light Power
-              <input type="range" id="key-intensity" min="0" max="2" step="0.05">
-              <span class="slider-value" id="key-intensity-value"></span>
+            <label class="slider-label">Sun Angle (Horizontal)
+              <input type="range" id="sun-horizontal" min="0" max="360" step="1">
+              <span class="slider-value" id="sun-horizontal-value"></span>
             </label>
-            <label class="slider-label">Fill Light Power
-              <input type="range" id="fill-intensity" min="0" max="2" step="0.05">
-              <span class="slider-value" id="fill-intensity-value"></span>
+            <label class="slider-label">Sun Angle (Vertical)
+              <input type="range" id="sun-vertical" min="5" max="85" step="1">
+              <span class="slider-value" id="sun-vertical-value"></span>
             </label>
           </div>
         </div>
@@ -298,11 +298,10 @@
         this.model = null;
         this.materials = { sheet: null, postTrack: null };
         this.stepMaterials = { frame: null, lattice: null };
-        this.lights = { ambient: null, key: null, fill: null };
+        this.lights = { ambient: null, sun: null };
         this.lightDefaults = {
-          ambientIntensity: 0.6,
-          key: { x: -3.2, y: 5, z: 3.8, intensity: 1.0 },
-          fill: { x: 3.2, y: 5, z: -3.8, intensity: 1.0 }
+          ambientIntensity: 0.4,
+          sun: { intensity: 1.2, radius: 6, horizontal: 45, vertical: 45 }
         };
 
         this.initThreeJS();
@@ -353,31 +352,18 @@
         const ambientLight = new THREE.AmbientLight(0xffffff, this.lightDefaults.ambientIntensity);
         this.scene.add(ambientLight);
 
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, this.lightDefaults.key.intensity);
-        directionalLight1.position.set(
-          this.lightDefaults.key.x,
-          this.lightDefaults.key.y,
-          this.lightDefaults.key.z
-        );
-        directionalLight1.castShadow = true;
-        directionalLight1.shadow.mapSize.width = 1024;
-        directionalLight1.shadow.mapSize.height = 1024;
-        directionalLight1.shadow.camera.near = 0.5;
-        directionalLight1.shadow.camera.far = 50;
-        this.scene.add(directionalLight1);
-
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, this.lightDefaults.fill.intensity);
-        directionalLight2.position.set(
-          this.lightDefaults.fill.x,
-          this.lightDefaults.fill.y,
-          this.lightDefaults.fill.z
-        );
-        this.scene.add(directionalLight2);
+        const sunLight = new THREE.DirectionalLight(0xffffff, this.lightDefaults.sun.intensity);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 50;
+        this.scene.add(sunLight);
+        this.scene.add(sunLight.target);
 
         this.lights = {
           ambient: ambientLight,
-          key: directionalLight1,
-          fill: directionalLight2
+          sun: sunLight
         };
 
         const floorGeometry = new THREE.CircleGeometry(5, 32);
@@ -400,19 +386,30 @@
       }
 
       applyLightSettings() {
-        const ambient = Number(document.getElementById('ambient-intensity').value || this.lightDefaults.ambientIntensity);
-        const keyIntensity = Number(document.getElementById('key-intensity').value || this.lightDefaults.key.intensity);
-        const fillIntensity = Number(document.getElementById('fill-intensity').value || this.lightDefaults.fill.intensity);
+        const sunBrightness = Number(document.getElementById('sun-brightness').value || this.lightDefaults.sun.intensity);
+        const sunHorizontal = Number(document.getElementById('sun-horizontal').value || this.lightDefaults.sun.horizontal);
+        const sunVertical = Number(document.getElementById('sun-vertical').value || this.lightDefaults.sun.vertical);
 
         if (this.lights.ambient) {
-          this.lights.ambient.intensity = ambient;
+          this.lights.ambient.intensity = this.lightDefaults.ambientIntensity;
         }
-        if (this.lights.key) {
-          this.lights.key.intensity = keyIntensity;
+        if (this.lights.sun) {
+          this.lights.sun.intensity = sunBrightness;
+          this.updateSunPosition(sunHorizontal, sunVertical);
         }
-        if (this.lights.fill) {
-          this.lights.fill.intensity = fillIntensity;
-        }
+      }
+
+      updateSunPosition(horizontalDeg, verticalDeg) {
+        if (!this.lights.sun) return;
+        const radius = this.lightDefaults.sun.radius;
+        const horiz = THREE.Math.degToRad(horizontalDeg);
+        const vert = THREE.Math.degToRad(verticalDeg);
+        const x = radius * Math.cos(vert) * Math.cos(horiz);
+        const y = radius * Math.sin(vert);
+        const z = radius * Math.cos(vert) * Math.sin(horiz);
+        this.lights.sun.position.set(x, y, z);
+        this.lights.sun.target.position.set(0, 0, 0);
+        this.lights.sun.target.updateMatrixWorld();
       }
   
       initUI() {
@@ -463,9 +460,9 @@
 
       initLightControls() {
         const sliderConfigs = [
-          { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
-          { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
-          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 }
+          { id: 'sun-brightness', value: this.lightDefaults.sun.intensity, digits: 2 },
+          { id: 'sun-horizontal', value: this.lightDefaults.sun.horizontal, digits: 0 },
+          { id: 'sun-vertical', value: this.lightDefaults.sun.vertical, digits: 0 }
         ];
 
         sliderConfigs.forEach(cfg => {
@@ -916,9 +913,9 @@
         }
 
         const sliderDefaults = [
-          { id: 'ambient-intensity', value: this.lightDefaults.ambientIntensity, digits: 2 },
-          { id: 'key-intensity', value: this.lightDefaults.key.intensity, digits: 2 },
-          { id: 'fill-intensity', value: this.lightDefaults.fill.intensity, digits: 2 }
+          { id: 'sun-brightness', value: this.lightDefaults.sun.intensity, digits: 2 },
+          { id: 'sun-horizontal', value: this.lightDefaults.sun.horizontal, digits: 0 },
+          { id: 'sun-vertical', value: this.lightDefaults.sun.vertical, digits: 0 }
         ];
         sliderDefaults.forEach(cfg => {
           const input = document.getElementById(cfg.id);
