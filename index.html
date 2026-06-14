@@ -824,9 +824,23 @@
     }
 
     /* ---------- Model loading ---------- */
-    setLoading(on, sub) {
+    setLoading(on, name) {
       el('overlay-loading').classList.toggle('hide', !on);
-      if (sub) el('loading-sub').textContent = sub;
+      if (on && name) { this.loadingName = name; el('loading-sub').textContent = name; }
+    }
+
+    // Returns a GLTFLoader onProgress handler that reports real download
+    // progress (falls back to MB when the server omits Content-Length).
+    progressHandler() {
+      const name = this.loadingName;
+      return evt => {
+        if (evt.lengthComputable && evt.total) {
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          el('loading-sub').textContent = `${name} · ${pct}%`;
+        } else {
+          el('loading-sub').textContent = `${name} · ${(evt.loaded / 1048576).toFixed(1)} MB`;
+        }
+      };
     }
 
     clearModel() {
@@ -865,7 +879,7 @@
         this.frameModel(this.model);
         if (onReady) onReady();
         this.setLoading(false);
-      }, undefined, err => {
+      }, this.progressHandler(), err => {
         if (token !== this.loadToken) return;
         if (onReady && onReady.fallback) { onReady.fallback(); return; }
         console.error('Error loading model:', file, err);
@@ -1212,8 +1226,9 @@
         this.frameModel(this.model);
         ready();
         this.setLoading(false);
-      }, undefined, () => {
+      }, this.progressHandler(), () => {
         if (token !== this.loadToken) return;
+        this.setLoading(true, fallback.replace('models/', ''));
         loader.load(fallback, gltf => {
           if (token !== this.loadToken) return;
           this.clearModel();
@@ -1225,7 +1240,7 @@
           this.frameModel(this.model);
           ready();
           this.setLoading(false);
-        }, undefined, err => {
+        }, this.progressHandler(), err => {
           if (token !== this.loadToken) return;
           console.error('Error loading model:', err);
           this.setLoading(false);
