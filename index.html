@@ -1,950 +1,1403 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <title>Product Configurator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Configurator — Gates &amp; Privacy Screens</title>
+  <meta name="description" content="Interactive 3D configurator for aluminium gates and privacy screens. Choose your product, size and colours and preview it live in 3D.">
   <link rel="icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
+    /* ============================================================
+       Design tokens
+       ============================================================ */
     :root {
-      --primary: #2c3e50;
-      --secondary: #3498db;
-      --background: #ecf0f1;
-      --text: #2c3e50;
+      --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+      --radius-sm: 8px;
+      --radius: 14px;
+      --radius-lg: 20px;
+
+      --ease: cubic-bezier(.4, 0, .2, 1);
+      --speed: .22s;
+
+      --header-h: 64px;
+      --panel-w: 380px;
     }
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+
+    html[data-theme="light"] {
+      --bg: #eef1f6;
+      --bg-grad-a: #f7f9fc;
+      --bg-grad-b: #dfe5ee;
+      --surface: #ffffff;
+      --surface-2: #f4f6fa;
+      --surface-3: #eceff5;
+      --border: #e2e7f0;
+      --border-strong: #d2d9e6;
+      --text: #1a2230;
+      --text-muted: #66708a;
+      --text-faint: #97a0b5;
+      --accent: #3b6cff;
+      --accent-2: #6a4bff;
+      --accent-soft: rgba(59, 108, 255, .12);
+      --accent-contrast: #ffffff;
+      --success: #18a366;
+      --shadow-sm: 0 1px 2px rgba(20, 30, 55, .06), 0 1px 3px rgba(20, 30, 55, .08);
+      --shadow: 0 10px 30px -12px rgba(20, 30, 55, .22);
+      --shadow-lg: 0 30px 60px -18px rgba(20, 30, 55, .35);
+      --stage-a: #fbfcfe;
+      --stage-b: #c7cfdd;
+      --stage-c: #aab4c7;
+      --ring: rgba(59, 108, 255, .35);
     }
+
+    html[data-theme="dark"] {
+      --bg: #0c1018;
+      --bg-grad-a: #131927;
+      --bg-grad-b: #0a0d14;
+      --surface: #151b27;
+      --surface-2: #1b2230;
+      --surface-3: #222b3c;
+      --border: #2a3447;
+      --border-strong: #38445c;
+      --text: #eaf0fb;
+      --text-muted: #97a3bd;
+      --text-faint: #6b768f;
+      --accent: #5b86ff;
+      --accent-2: #9a6bff;
+      --accent-soft: rgba(91, 134, 255, .16);
+      --accent-contrast: #0c1018;
+      --success: #2fce86;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+      --shadow: 0 16px 40px -16px rgba(0, 0, 0, .65);
+      --shadow-lg: 0 40px 70px -20px rgba(0, 0, 0, .75);
+      --stage-a: #1a2333;
+      --stage-b: #0d121c;
+      --stage-c: #05080d;
+      --ring: rgba(91, 134, 255, .45);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
     body {
-      background: var(--background);
+      font-family: var(--font-sans);
       color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 80% -10%, var(--bg-grad-a), transparent 60%),
+        radial-gradient(900px 600px at -10% 110%, var(--bg-grad-b), transparent 55%),
+        var(--bg);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      transition: background-color var(--speed) var(--ease), color var(--speed) var(--ease);
     }
-    .container {
-      max-width: 1600px;
+
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    ::selection { background: var(--accent-soft); }
+
+    /* Scrollbars */
+    .scroll::-webkit-scrollbar { width: 10px; }
+    .scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+    .scroll::-webkit-scrollbar-thumb:hover { background: var(--text-faint); background-clip: content-box; }
+
+    /* ============================================================
+       Header
+       ============================================================ */
+    .appbar {
+      position: sticky; top: 0; z-index: 30;
+      height: var(--header-h);
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0 clamp(1rem, 3vw, 2rem);
+      background: color-mix(in srgb, var(--surface) 80%, transparent);
+      backdrop-filter: saturate(160%) blur(14px);
+      -webkit-backdrop-filter: saturate(160%) blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 11px; flex: none;
+      display: grid; place-items: center; color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 6px 16px -6px var(--accent);
+    }
+    .brand-mark svg { width: 22px; height: 22px; }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+    .brand-text strong { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
+    .brand-text span { font-size: .72rem; color: var(--text-muted); font-weight: 500; }
+    .appbar-spacer { flex: 1; }
+    .appbar-actions { display: flex; align-items: center; gap: .5rem; }
+
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 11px;
+      display: grid; place-items: center; color: var(--text-muted);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: all var(--speed) var(--ease);
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .icon-btn:active { transform: translateY(0); }
+    .icon-btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+    .icon-btn svg { width: 19px; height: 19px; }
+
+    /* ============================================================
+       Layout
+       ============================================================ */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr var(--panel-w);
+      gap: clamp(1rem, 2vw, 1.5rem);
+      padding: clamp(1rem, 2vw, 1.5rem);
+      max-width: 1700px;
       margin: 0 auto;
-      padding: 2rem;
+      align-items: start;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-size: 2rem;
-      color: var(--primary);
-    }
-    .configurator {
-      display: grid;
-      grid-template-columns: 1fr 350px;
-      gap: 2rem;
-      background: white;
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-    }
-    .model-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    #canvas-container {
-      width: 100%;
-      height: 700px;
-      border-radius: 12px;
-      overflow: hidden;
+
+    /* ============================================================
+       Stage (3D viewport)
+       ============================================================ */
+    .stage {
       position: relative;
-      background: linear-gradient(to top, #ffffff, #cccccc);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: radial-gradient(120% 100% at 50% 0%, var(--stage-a), var(--stage-b) 55%, var(--stage-c));
+      box-shadow: var(--shadow-lg);
+      height: calc(100vh - var(--header-h) - clamp(2rem, 4vw, 3rem));
+      min-height: 460px;
     }
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+    .stage canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; }
+
+    .stage-toolbar {
+      position: absolute; top: 14px; right: 14px; z-index: 6;
+      display: flex; gap: 6px;
+      padding: 6px;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--surface) 72%, transparent);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
     }
-    .inline-controls {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+    .stage-toolbar .icon-btn { width: 38px; height: 38px; background: transparent; border-color: transparent; }
+    .stage-toolbar .icon-btn:hover { background: var(--surface-2); border-color: var(--border); }
+
+    .stage-hint {
+      position: absolute; left: 16px; bottom: 14px; z-index: 5;
+      font-size: .72rem; color: var(--text-muted);
+      display: flex; align-items: center; gap: .4rem;
+      padding: .35rem .6rem; border-radius: 99px;
+      background: color-mix(in srgb, var(--surface) 60%, transparent);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      opacity: .9; pointer-events: none;
+      transition: opacity .4s var(--ease);
     }
-    .control-group {
-      background: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      border: 1px solid #eee;
-      transition: background-color 0.3s ease;
+    .stage-hint svg { width: 14px; height: 14px; }
+
+    /* Loading + empty overlays */
+    .overlay {
+      position: absolute; inset: 0; z-index: 8;
+      display: grid; place-items: center; text-align: center;
+      padding: 2rem;
+      background: radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--stage-a) 70%, transparent), color-mix(in srgb, var(--stage-c) 80%, transparent));
+      transition: opacity .3s var(--ease), visibility .3s var(--ease);
     }
-    .control-group:hover {
-      background-color: #f8f8f8;
+    .overlay.hide { opacity: 0; visibility: hidden; }
+    .spinner {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 3px solid var(--border-strong);
+      border-top-color: var(--accent);
+      animation: spin .8s linear infinite;
+      margin: 0 auto .9rem;
     }
-    .control-header {
-      margin-bottom: 0.5rem;
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-title { font-weight: 600; font-size: .95rem; }
+    .overlay-sub { font-size: .82rem; color: var(--text-muted); margin-top: .25rem; max-width: 320px; }
+    .overlay .ghost-icon { color: var(--text-faint); margin-bottom: .75rem; }
+    .overlay .ghost-icon svg { width: 54px; height: 54px; }
+
+    /* ============================================================
+       Configuration panel
+       ============================================================ */
+    .panel {
+      display: flex; flex-direction: column; gap: 1rem;
+      height: calc(100vh - var(--header-h) - clamp(2rem, 4vw, 3rem));
+      min-height: 460px;
+      overflow-y: auto;
+      padding-right: 4px;
+      scrollbar-gutter: stable;
     }
-    .control-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--primary);
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
     }
-    .control-subtitle {
-      font-size: 0.85rem;
-      color: #6c7a89;
-      margin-top: 0.15rem;
+    .card-pad { padding: 1.1rem 1.15rem; }
+
+    .section-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .85rem; }
+    .section-num {
+      width: 22px; height: 22px; flex: none; border-radius: 7px;
+      font-size: .72rem; font-weight: 700;
+      display: grid; place-items: center;
+      background: var(--accent-soft); color: var(--accent);
     }
-    .sku-display {
-      background: var(--primary);
-      color: white;
-      padding: 1rem;
-      border-radius: 8px;
-      font-family: monospace;
-      text-align: center;
+    .section-title { font-size: .82rem; font-weight: 700; letter-spacing: .01em; }
+    .section-title small { display: block; font-weight: 500; font-size: .72rem; color: var(--text-muted); letter-spacing: 0; margin-top: 1px; }
+
+    /* Product cards */
+    .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+    .product-card {
+      text-align: left; position: relative;
+      padding: .8rem .85rem;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      transition: all var(--speed) var(--ease);
+      display: flex; flex-direction: column; gap: .15rem;
     }
-    select {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9rem;
+    .product-card:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+    .product-card.selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--ring); }
+    .product-card .pc-icon { color: var(--accent); margin-bottom: .35rem; }
+    .product-card .pc-icon svg { width: 22px; height: 22px; }
+    .product-card .pc-name { font-size: .82rem; font-weight: 600; }
+    .product-card .pc-desc { font-size: .7rem; color: var(--text-muted); }
+    .product-card .pc-check { position: absolute; top: .55rem; right: .55rem; color: var(--accent); opacity: 0; transform: scale(.6); transition: all var(--speed) var(--ease); }
+    .product-card.selected .pc-check { opacity: 1; transform: scale(1); }
+    .product-card .pc-check svg { width: 16px; height: 16px; }
+
+    /* Segmented controls */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { display: flex; align-items: center; justify-content: space-between; font-size: .76rem; font-weight: 600; color: var(--text-muted); margin-bottom: .5rem; }
+    .field-label .picked { color: var(--text); font-weight: 600; }
+    .seg { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .seg button {
+      flex: 1 1 auto; min-width: 56px;
+      padding: .55rem .5rem;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      font-size: .82rem; font-weight: 600; color: var(--text);
+      transition: all var(--speed) var(--ease);
     }
-    button {
-      width: 100%;
-      padding: 0.5rem;
-      font-size: 1rem;
-      border: none;
-      background: var(--secondary);
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.3s ease;
+    .seg button:hover { border-color: var(--border-strong); }
+    .seg button.selected { border-color: var(--accent); background: var(--accent); color: var(--accent-contrast); box-shadow: 0 6px 14px -8px var(--accent); }
+
+    /* Swatches */
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: .5rem; }
+    .swatch {
+      position: relative; aspect-ratio: 1; border-radius: 10px;
+      border: 1.5px solid var(--border);
+      transition: transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+      overflow: hidden;
     }
-    button:hover {
-      background: #2980b9;
+    .swatch::after {
+      content: ""; position: absolute; inset: 0; border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.12), inset 0 -8px 14px -8px rgba(0,0,0,.35);
+      pointer-events: none;
     }
-    .hide {
-      display: none;
+    .swatch:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--shadow); z-index: 2; }
+    .swatch.selected { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); transform: translateY(-1px); z-index: 3; }
+    .swatch .tick {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      opacity: 0; transition: opacity var(--speed) var(--ease); z-index: 1;
     }
-    .light-panel {
-      border: 1px solid #e3e9ef;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
-      background: linear-gradient(145deg, #f8fafc, #eef2f7);
+    .swatch.selected .tick { opacity: 1; }
+    .swatch .tick svg { width: 18px; height: 18px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+    .empty-note { font-size: .78rem; color: var(--text-faint); padding: .4rem 0; }
+
+    /* Summary / SKU */
+    .summary { background: linear-gradient(150deg, var(--surface), var(--surface-2)); }
+    .summary-rows { display: flex; flex-direction: column; gap: .1rem; margin-bottom: .9rem; }
+    .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .4rem 0; font-size: .8rem; border-bottom: 1px dashed var(--border); }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .k { color: var(--text-muted); }
+    .summary-row .v { font-weight: 600; display: flex; align-items: center; gap: .4rem; text-align: right; }
+    .summary-row .dot { width: 12px; height: 12px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: none; }
+    .summary-row .v.unset { color: var(--text-faint); font-weight: 500; }
+
+    .sku-box {
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-strong);
+      background: var(--surface-3);
+      padding: .85rem .9rem;
+      display: flex; align-items: center; gap: .75rem;
     }
-    .light-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem 1rem;
-      margin-top: 0.75rem;
+    .sku-box .sku-meta { flex: 1; min-width: 0; }
+    .sku-box .sku-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .12em; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: .4rem; }
+    .sku-box .sku-label .status { display: inline-flex; align-items: center; gap: .25rem; color: var(--text-faint); letter-spacing: .02em; text-transform: none; font-weight: 500; }
+    .sku-box .sku-label .status.ok { color: var(--success); }
+    .sku-box .sku-label .status svg { width: 12px; height: 12px; }
+    .sku-value { font-family: var(--font-mono); font-size: 1.02rem; font-weight: 700; letter-spacing: .02em; margin-top: .25rem; word-break: break-all; }
+    .sku-value .x { color: var(--text-faint); }
+    .copy-btn {
+      flex: none; width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface);
+      display: grid; place-items: center; color: var(--text-muted);
+      transition: all var(--speed) var(--ease);
     }
-    .light-grid .full-row {
-      grid-column: 1 / -1;
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .copy-btn svg { width: 17px; height: 17px; }
+
+    /* Lighting (collapsible) */
+    .accordion > .acc-head {
+      width: 100%; display: flex; align-items: center; gap: .6rem;
+      padding: 1rem 1.15rem;
     }
-    .slider-label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.85rem;
-      color: #4b5563;
-    }
-    .slider-value {
-      min-width: 2.6rem;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      color: var(--primary);
-      font-weight: 600;
-    }
+    .acc-head .chev { margin-left: auto; color: var(--text-muted); transition: transform var(--speed) var(--ease); }
+    .accordion.open .acc-head .chev { transform: rotate(180deg); }
+    .acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s var(--ease); }
+    .accordion.open .acc-body { grid-template-rows: 1fr; }
+    .acc-body > div { overflow: hidden; }
+    .acc-inner { padding: 0 1.15rem 1.15rem; }
+
+    .slider-row { margin-bottom: .9rem; }
+    .slider-row:last-child { margin-bottom: 0; }
+    .slider-top { display: flex; justify-content: space-between; font-size: .76rem; color: var(--text-muted); margin-bottom: .35rem; }
+    .slider-top .val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
     input[type="range"] {
-      flex: 1;
-      accent-color: var(--secondary);
-      height: 6px;
-      border-radius: 999px;
-      background: #e5e7eb;
+      -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+      border-radius: 99px; background: var(--surface-3); outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent); border: 3px solid var(--surface);
+      box-shadow: var(--shadow-sm); transition: transform .12s var(--ease);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: var(--shadow-sm);
+    }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: .55rem 0; font-size: .82rem; }
+    .toggle-row:first-of-type { padding-top: .2rem; }
+    .switch { position: relative; width: 42px; height: 24px; flex: none; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .track { position: absolute; inset: 0; border-radius: 99px; background: var(--surface-3); border: 1px solid var(--border); transition: all var(--speed) var(--ease); }
+    .switch .track::before { content: ""; position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; background: var(--text-faint); transition: all var(--speed) var(--ease); }
+    .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }
+    .switch input:checked + .track::before { left: 21px; background: #fff; }
+
+    .text-btn {
+      width: 100%; padding: .7rem; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2);
+      font-size: .82rem; font-weight: 600; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center; gap: .45rem;
+      transition: all var(--speed) var(--ease);
+    }
+    .text-btn:hover { color: #e5484d; border-color: #e5484d; background: color-mix(in srgb, #e5484d 8%, transparent); }
+    .text-btn svg { width: 16px; height: 16px; }
+
+    /* Toasts */
+    .toasts { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: .5rem; align-items: center; pointer-events: none; }
+    .toast {
+      display: flex; align-items: center; gap: .55rem;
+      padding: .7rem 1rem; border-radius: 12px;
+      background: var(--text); color: var(--bg);
+      font-size: .84rem; font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      animation: toast-in .35s var(--ease);
+    }
+    .toast svg { width: 17px; height: 17px; color: var(--success); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+    .toast.out { animation: toast-out .3s var(--ease) forwards; }
+    @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
+
+    /* Fullscreen */
+    .stage:fullscreen { border-radius: 0; height: 100vh; width: 100vw; }
+
+    /* Responsive */
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+      .stage { height: 56vh; min-height: 380px; }
+      .panel { height: auto; overflow: visible; max-height: none; }
+    }
+    @media (max-width: 560px) {
+      :root { --header-h: 58px; }
+      .brand-text span { display: none; }
+      .product-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Product Configurator</h1>
-    <div class="configurator">
-      <!-- Left Column: 3D Model, Floor & SKU Display -->
-      <div class="model-container">
-        <div id="canvas-container">
-          <canvas id="product-canvas"></canvas>
-        </div>
-        <button id="toggle-lighting">Show Lighting Controls</button>
-        <div class="control-group light-panel hide" id="lighting-panel">
-          <div class="control-header">
-            <span class="control-title">Environment Lighting</span>
-            <p class="control-subtitle">Fine-tune the studio lighting around your model.</p>
-          </div>
-          <div class="light-grid">
-            <label class="slider-label full-row">Sun Brightness
-              <input type="range" id="sun-brightness" min="0" max="3" step="0.05">
-              <span class="slider-value" id="sun-brightness-value"></span>
-            </label>
-            <label class="slider-label">Sun Angle (Horizontal)
-              <input type="range" id="sun-horizontal" min="0" max="360" step="1">
-              <span class="slider-value" id="sun-horizontal-value"></span>
-            </label>
-            <label class="slider-label">Sun Angle (Vertical)
-              <input type="range" id="sun-vertical" min="5" max="85" step="1">
-              <span class="slider-value" id="sun-vertical-value"></span>
-            </label>
-          </div>
-        </div>
-        <div class="sku-display">
-          SKU: <span id="sku">XXXXXXXX</span>
-        </div>
-      </div>
-      <!-- Right Column: Dropdown Controls -->
-      <div class="controls">
-        <!-- Parent SKU Dropdown (always visible) -->
-        <div class="control-group" id="group-parent">
-          <div class="control-header">
-            <span class="control-title">Parent SKU</span>
-            <select id="dropdown-parent">
-              <option value="">Select Parent SKU</option>
-            </select>
-          </div>
-        </div>
-  
-        <!-- Controls for gate models (e.g. GC) -->
-        <div id="nonStepControls" class="hide">
-          <div class="control-group" id="group-sku">
-            <div class="control-header">
-              <span class="control-title">SKU</span>
-              <select id="dropdown-sku">
-                <option value="">Select SKU</option>
-              </select>
-            </div>
-          </div>
-          <div class="control-group" id="group-size">
-            <div class="control-header">
-              <span class="control-title">Size (m)</span>
-              <select id="dropdown-size">
-                <option value="">Select Size</option>
-              </select>
-            </div>
-          </div>
-          <div class="control-group" id="group-sheet">
-            <div class="control-header">
-              <span class="control-title">Sheet Colour</span>
-              <select id="dropdown-sheet">
-                <option value="">Select Sheet Colour</option>
-              </select>
-            </div>
-          </div>
-          <div class="control-group" id="group-post">
-            <div class="control-header">
-              <span class="control-title">Post Track Colour</span>
-              <select id="dropdown-post">
-                <option value="">Select Post Colour</option>
-              </select>
-            </div>
-          </div>
-        </div>
-  
-        <!-- Controls for STEP-type models -->
-        <div id="stepControls" class="hide">
-          <div class="control-group" id="group-frame">
-            <div class="control-header">
-              <span class="control-title">Frame Colour</span>
-              <select id="dropdown-frame">
-                <option value="">Select Frame Colour</option>
-              </select>
-            </div>
-          </div>
-          <div class="control-group" id="group-lattice">
-            <div class="control-header">
-              <span class="control-title">Lattice Colour</span>
-              <select id="dropdown-lattice">
-                <option value="">Select Lattice Colour</option>
-              </select>
-            </div>
-          </div>
-        </div>
-  
-        <div class="control-group">
-          <button id="reset-config">Reset Configurator</button>
-        </div>
-      </div>
+  <!-- ===================== Header ===================== -->
+  <header class="appbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/><path d="M9 9h.01M15 9h.01"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>Product Configurator</strong>
+        <span>Gates &amp; Privacy Screens</span>
+      </span>
     </div>
-  </div>
-  
-  <!-- Three.js and Helpers -->
+    <div class="appbar-spacer"></div>
+    <div class="appbar-actions">
+      <button class="icon-btn" id="theme-toggle" title="Toggle theme" aria-label="Toggle colour theme">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== Layout ===================== -->
+  <main class="layout">
+    <!-- Stage -->
+    <section class="stage" id="stage">
+      <canvas id="product-canvas"></canvas>
+
+      <div class="stage-toolbar" role="toolbar" aria-label="Viewport controls">
+        <button class="icon-btn" id="btn-autorotate" title="Auto-rotate" aria-label="Toggle auto-rotate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-reset-view" title="Reset camera" aria-label="Reset camera view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-screenshot" title="Download snapshot" aria-label="Download snapshot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-fullscreen" title="Fullscreen" aria-label="Toggle fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+
+      <div class="stage-hint" id="stage-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6"/><path d="M9 11V9a3 3 0 0 1 6 0v2"/><path d="M15 11V8a3 3 0 0 1 6 0v8a6 6 0 0 1-6 6h-2a8 8 0 0 1-8-8v-1a3 3 0 0 1 6 0"/></svg>
+        Drag to rotate · Scroll to zoom
+      </div>
+
+      <!-- Loading overlay -->
+      <div class="overlay" id="overlay-loading">
+        <div>
+          <div class="spinner"></div>
+          <div class="overlay-title">Loading model…</div>
+          <div class="overlay-sub" id="loading-sub">Preparing the 3D preview</div>
+        </div>
+      </div>
+
+      <!-- Empty / no-selection overlay -->
+      <div class="overlay hide" id="overlay-empty">
+        <div>
+          <div class="ghost-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></svg>
+          </div>
+          <div class="overlay-title">Choose a product to begin</div>
+          <div class="overlay-sub">Select a product on the right to load its live 3D preview, then customise the size and colours.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel -->
+    <aside class="panel scroll" id="panel">
+      <!-- Product selection -->
+      <div class="card card-pad">
+        <div class="section-head">
+          <span class="section-num">1</span>
+          <span class="section-title">Product<small>Pick what you want to configure</small></span>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+      </div>
+
+      <!-- Dynamic configuration -->
+      <div class="card card-pad" id="config-card" style="display:none">
+        <div class="section-head">
+          <span class="section-num">2</span>
+          <span class="section-title">Customise<small id="config-sub">Size &amp; colours</small></span>
+        </div>
+        <div id="config-body"></div>
+      </div>
+
+      <!-- Summary -->
+      <div class="card card-pad summary" id="summary-card" style="display:none">
+        <div class="section-head">
+          <span class="section-num">3</span>
+          <span class="section-title">Your configuration<small>Live summary &amp; SKU</small></span>
+        </div>
+        <div class="summary-rows" id="summary-rows"></div>
+        <div class="sku-box">
+          <div class="sku-meta">
+            <div class="sku-label">SKU
+              <span class="status" id="sku-status"></span>
+            </div>
+            <div class="sku-value" id="sku-value">—</div>
+          </div>
+          <button class="copy-btn" id="copy-sku" title="Copy SKU" aria-label="Copy SKU to clipboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lighting accordion -->
+      <div class="card accordion" id="lighting-acc">
+        <button class="acc-head" id="lighting-head" aria-expanded="false">
+          <span class="section-num" style="background:transparent;color:var(--text-muted)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+          </span>
+          <span class="section-title">Lighting &amp; scene<small>Studio environment controls</small></span>
+          <span class="chev"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div class="acc-body"><div><div class="acc-inner">
+          <div class="slider-row">
+            <div class="slider-top"><span>Exposure</span><span class="val" id="v-exposure"></span></div>
+            <input type="range" id="s-exposure" min="0.4" max="2" step="0.02">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><span>Sun brightness</span><span class="val" id="v-sun"></span></div>
+            <input type="range" id="s-sun" min="0" max="3" step="0.05">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><span>Sun rotation</span><span class="val" id="v-horiz"></span></div>
+            <input type="range" id="s-horiz" min="0" max="360" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-top"><span>Sun height</span><span class="val" id="v-vert"></span></div>
+            <input type="range" id="s-vert" min="5" max="85" step="1">
+          </div>
+          <div class="toggle-row">
+            <span>Show ground shadow</span>
+            <label class="switch"><input type="checkbox" id="t-shadow" checked><span class="track"></span></label>
+          </div>
+        </div></div></div>
+      </div>
+
+      <!-- Reset -->
+      <button class="text-btn" id="reset-config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Reset configuration
+      </button>
+    </aside>
+  </main>
+
+  <div class="toasts" id="toasts"></div>
+
+  <!-- Three.js -->
   <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-  
+
   <script>
-    // Helper: Given a colour name, return its short code.
-    function getShortCode(colorName) {
-      const mapping = window.productData.colorMapping.find(c => c["Colour"] === colorName);
-      return mapping ? mapping["Short Code"] : "";
-    }
-  
-    // For gate models, parse the SKU.
-    function parseGateSKU(sku) {
-      return {
-        parent: sku.substring(0,2).trim(),
-        identifier: sku.substring(2,8).trim(),
-        size: sku.substring(8,10).trim(),
-        sheet: sku.substring(10,12).trim(),
-        post: sku.substring(12,14).trim()
+  "use strict";
+
+  /* ============================================================
+     Static metadata
+     ============================================================ */
+  // Products that have a 3D model available. Others in data.json have no
+  // GLB and so are intentionally excluded from the catalogue.
+  const GATE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M3 21h18M7 21V11M12 21V9M17 21V11"/></svg>';
+  const SCREEN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 3v18M12 3v18M16 3v18"/></svg>';
+
+  const PRODUCTS = [
+    { id: 'GC',      type: 'gate',   name: 'Sliding Gate',   desc: 'Single or double',     icon: GATE_ICON,   model: null },
+    { id: 'STEPSSP', type: 'screen', name: 'Slat Screen',    desc: 'STEP · SSP',           icon: SCREEN_ICON, model: 'models/STEPSSP.glb' },
+    { id: 'STEPSUP', type: 'screen', name: 'Slat Screen+',   desc: 'STEP · SUP',           icon: SCREEN_ICON, model: 'models/STEPSUP.glb' },
+    { id: 'STEPWAV', type: 'screen', name: 'Wave Screen',    desc: 'STEP · WAV',           icon: SCREEN_ICON, model: 'models/STEPWAV.glb' },
+    { id: 'STEPCGM', type: 'screen', name: 'CGM Screen',     desc: 'STEP · CGM',           icon: SCREEN_ICON, model: 'models/STEPCGM.glb' }
+  ];
+  const STEP_PARENTS = PRODUCTS.filter(p => p.type === 'screen').map(p => p.id);
+  const DEFAULT_GREY = '#9aa0a6';
+
+  const TICK = '<span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
+
+  function parseGateSKU(sku) {
+    return {
+      parent: sku.substring(0, 2).trim(),
+      identifier: sku.substring(2, 8).trim(),
+      size: sku.substring(8, 10).trim(),
+      sheet: sku.substring(10, 12).trim(),
+      post: sku.substring(12, 14).trim()
+    };
+  }
+
+  const el = id => document.getElementById(id);
+  const uniq = arr => [...new Set(arr)];
+
+  /* ============================================================
+     Configurator
+     ============================================================ */
+  class ProductConfigurator {
+    constructor() {
+      this.configurations = [];
+      this.colorMapping = [];
+      this.model = null;
+      this.currentModelFile = null;
+      this.loadToken = 0;
+
+      // Live selection state
+      this.sel = { parent: '', sku: '', size: '', sheet: '', post: '', frame: '', lattice: '' };
+
+      // Material references on the active model
+      this.materials = { sheet: null, post: null, frame: null, lattice: null };
+
+      this.light = {
+        exposure: 1.05,
+        sun: 1.35,
+        horizontal: 48,
+        vertical: 52,
+        shadow: true,
+        ambient: 0.35,
+        radius: 9
       };
+
+      this.initThree();
+      this.bindGlobalUI();
+
+      this.loadData().then(() => {
+        window.productData = { configurations: this.configurations, colorMapping: this.colorMapping };
+        this.renderProducts();
+        this.animate();
+        this.setLoading(false);
+        // Auto-select the first product for an immediate, polished preview.
+        if (PRODUCTS.length) this.selectProduct(PRODUCTS[0].id);
+      });
     }
-  
-    class ProductConfigurator {
-      constructor() {
-        this.configurations = [];
-        this.colorMapping = [];
-        this.currentModelFile = null;
-        this.model = null;
-        this.materials = { sheet: null, postTrack: null };
-        this.stepMaterials = { frame: null, lattice: null };
-        this.lights = { ambient: null, sun: null };
-        this.lightDefaults = {
-          ambientIntensity: 0.4,
-          sun: { intensity: 1.2, radius: 6, horizontal: 45, vertical: 45 }
-        };
 
-        this.initThreeJS();
-
-        this.loadData().then(() => {
-          this.initUI();
-          this.updateConfiguration();
-          this.animate();
-        });
+    /* ---------- Data ---------- */
+    async loadData() {
+      try {
+        const res = await fetch('data.json');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        this.configurations = data.configurations || [];
+        this.colorMapping = data.colorMapping || [];
+      } catch (err) {
+        console.error('Error loading dataset:', err);
+        this.toast('Could not load product data', 'error');
       }
-  
-      async loadData() {
-        try {
-          const response = await fetch('data.json');
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-          const data = await response.json();
-          this.configurations = data.configurations;
-          this.colorMapping = data.colorMapping;
-        } catch (error) {
-          console.error("Error loading dataset:", error);
-          this.configurations = [];
-          this.colorMapping = [];
-        }
-        window.productData = {
-          configurations: this.configurations,
-          colorMapping: this.colorMapping
-        };
+    }
+
+    colourByName(name) { return this.colorMapping.find(c => c['Colour'] === name); }
+    codeFor(name) { const c = this.colourByName(name); return c ? c['Short Code'] : ''; }
+    hexFor(name) { const c = this.colourByName(name); return c ? c['Hex'] : DEFAULT_GREY; }
+
+    /* ============================================================
+       Three.js scene
+       ============================================================ */
+    initThree() {
+      this.stageEl = el('stage');
+      this.scene = new THREE.Scene();
+
+      const w = this.stageEl.clientWidth, h = this.stageEl.clientHeight;
+      this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 2000);
+      this.camera.position.set(-3.4, 2.8, 4.2);
+
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: el('product-canvas'),
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true
+      });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.renderer.setSize(w, h, false);
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.outputEncoding = THREE.sRGBEncoding;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = this.light.exposure;
+      this.renderer.setClearColor(0x000000, 0);
+
+      // Studio image-based lighting for crisp PBR reflections.
+      this.scene.environment = this.buildStudioEnvironment();
+
+      // Ambient + key (sun) lighting
+      this.ambient = new THREE.HemisphereLight(0xffffff, 0x9aa3b2, this.light.ambient);
+      this.scene.add(this.ambient);
+
+      this.sun = new THREE.DirectionalLight(0xffffff, this.light.sun);
+      this.sun.castShadow = true;
+      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.camera.near = 0.5;
+      this.sun.shadow.camera.far = 60;
+      this.sun.shadow.bias = -0.0004;
+      this.sun.shadow.normalBias = 0.02;
+      this.scene.add(this.sun);
+      this.scene.add(this.sun.target);
+
+      // Soft fill from the opposite side
+      this.fill = new THREE.DirectionalLight(0xdce6ff, 0.25);
+      this.fill.position.set(5, 4, -6);
+      this.scene.add(this.fill);
+
+      // Shadow-catching ground (transparent except where shadows fall)
+      this.ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.ShadowMaterial({ opacity: 0.22 })
+      );
+      this.ground.rotation.x = -Math.PI / 2;
+      this.ground.receiveShadow = true;
+      this.scene.add(this.ground);
+
+      this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.06;
+      this.controls.minDistance = 1;
+      this.controls.maxDistance = 60;
+      this.controls.maxPolarAngle = Math.PI / 2 + 0.05;
+      this.controls.autoRotateSpeed = 1.6;
+
+      this.cameraHome = { pos: this.camera.position.clone(), target: new THREE.Vector3() };
+      this.applyLight();
+
+      // Responsive sizing
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => this.resize()).observe(this.stageEl);
+      } else {
+        window.addEventListener('resize', () => this.resize());
       }
-  
-      initThreeJS() {
-        this.scene = new THREE.Scene();
-        const container = document.getElementById('canvas-container');
-        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({
-          canvas: document.querySelector('#product-canvas'),
-          antialias: true,
-          alpha: true
-        });
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.setClearColor(0x000000, 0);
-  
-        this.camera.position.set(-3.2, 3, 3.8);
-        this.camera.lookAt(0, 0, 0);
+      document.addEventListener('fullscreenchange', () => {
+        this.resize();
+        el('btn-fullscreen').classList.toggle('active', !!document.fullscreenElement);
+      });
+    }
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, this.lightDefaults.ambientIntensity);
-        this.scene.add(ambientLight);
+    // Builds a neutral studio environment map (PMREM) without external HDRIs.
+    buildStudioEnvironment() {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      const env = new THREE.Scene();
 
-        const sunLight = new THREE.DirectionalLight(0xffffff, this.lightDefaults.sun.intensity);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 1024;
-        sunLight.shadow.mapSize.height = 1024;
-        sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 50;
-        this.scene.add(sunLight);
-        this.scene.add(sunLight.target);
+      const room = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 18, 30),
+        new THREE.MeshStandardMaterial({ side: THREE.BackSide, roughness: 1, metalness: 0, color: 0x9aa2b0 })
+      );
+      env.add(room);
 
-        this.lights = {
-          ambient: ambientLight,
-          sun: sunLight
-        };
-
-        const floorGeometry = new THREE.CircleGeometry(5, 32);
-        const floorMaterial = new THREE.MeshStandardMaterial({
-          color: 0x808080,
-          side: THREE.FrontSide
-        });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0;
-        floor.receiveShadow = true;
-        this.scene.add(floor);
-  
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-  
-        window.addEventListener('resize', this.onWindowResize.bind(this));
-        this.onWindowResize();
-      }
-
-      applyLightSettings() {
-        const sunBrightness = Number(document.getElementById('sun-brightness').value || this.lightDefaults.sun.intensity);
-        const sunHorizontal = Number(document.getElementById('sun-horizontal').value || this.lightDefaults.sun.horizontal);
-        const sunVertical = Number(document.getElementById('sun-vertical').value || this.lightDefaults.sun.vertical);
-
-        if (this.lights.ambient) {
-          this.lights.ambient.intensity = this.lightDefaults.ambientIntensity;
-        }
-        if (this.lights.sun) {
-          this.lights.sun.intensity = sunBrightness;
-          this.updateSunPosition(sunHorizontal, sunVertical);
-        }
-      }
-
-      updateSunPosition(horizontalDeg, verticalDeg) {
-        if (!this.lights.sun) return;
-        const radius = this.lightDefaults.sun.radius;
-        const horiz = THREE.Math.degToRad(horizontalDeg);
-        const vert = THREE.Math.degToRad(verticalDeg);
-        const x = radius * Math.cos(vert) * Math.cos(horiz);
-        const y = radius * Math.sin(vert);
-        const z = radius * Math.cos(vert) * Math.sin(horiz);
-        this.lights.sun.position.set(x, y, z);
-        this.lights.sun.target.position.set(0, 0, 0);
-        this.lights.sun.target.updateMatrixWorld();
-      }
-  
-      initUI() {
-        this.populateParentDropdown();
-        this.adjustUIForParent();
-  
-        document.getElementById('dropdown-parent').addEventListener('change', () => {
-          this.adjustUIForParent();
-          this.updateSKUOptions();
-          this.updateSizeOptions();
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-  
-        document.getElementById('dropdown-sku').addEventListener('change', () => {
-          this.updateSizeOptions();
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-size').addEventListener('change', () => {
-          this.updateColorOptions();
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-sheet').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-post').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-  
-        document.getElementById('dropdown-frame').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-        document.getElementById('dropdown-lattice').addEventListener('change', () => {
-          this.updateConfiguration();
-        });
-  
-        document.getElementById('reset-config').addEventListener('click', () => {
-          this.resetSelections();
-        });
-
-        this.initLightControls();
-        this.initLightingPanelToggle();
-        this.updateSKUOptions();
-        this.updateSizeOptions();
-        this.updateColorOptions();
-      }
-
-      initLightControls() {
-        const sliderConfigs = [
-          { id: 'sun-brightness', value: this.lightDefaults.sun.intensity, digits: 2 },
-          { id: 'sun-horizontal', value: this.lightDefaults.sun.horizontal, digits: 0 },
-          { id: 'sun-vertical', value: this.lightDefaults.sun.vertical, digits: 0 }
-        ];
-
-        sliderConfigs.forEach(cfg => {
-          const input = document.getElementById(cfg.id);
-          const valueLabel = document.getElementById(`${cfg.id}-value`);
-          if (input && valueLabel) {
-            input.value = cfg.value;
-            valueLabel.textContent = Number(cfg.value).toFixed(cfg.digits);
-            input.addEventListener('input', () => {
-              const currentValue = Number(input.value);
-              valueLabel.textContent = currentValue.toFixed(cfg.digits);
-              this.applyLightSettings();
-            });
-          }
-        });
-
-        this.applyLightSettings();
-      }
-
-      initLightingPanelToggle() {
-        const toggleButton = document.getElementById('toggle-lighting');
-        const panel = document.getElementById('lighting-panel');
-        if (!toggleButton || !panel) return;
-
-        const updateLabel = () => {
-          toggleButton.textContent = panel.classList.contains('hide')
-            ? 'Show Lighting Controls'
-            : 'Hide Lighting Controls';
-        };
-
-        toggleButton.addEventListener('click', () => {
-          panel.classList.toggle('hide');
-          updateLabel();
-        });
-
-        updateLabel();
-      }
-  
-      populateParentDropdown() {
-        const select = document.getElementById('dropdown-parent');
-        select.innerHTML = "";
-        const placeholder = document.createElement('option');
-        placeholder.value = "";
-        placeholder.textContent = "Select Parent SKU";
-        select.appendChild(placeholder);
-  
-        if (this.configurations.length > 0) {
-          const uniqueParents = [...new Set(this.configurations.map(cfg => cfg["Parent SKU"].trim()))];
-          uniqueParents.forEach(parent => {
-            const option = document.createElement('option');
-            option.value = parent;
-            option.textContent = parent;
-            select.appendChild(option);
-          });
-        }
-      }
-  
-      adjustUIForParent() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (!parent) {
-          document.getElementById('nonStepControls').classList.add("hide");
-          document.getElementById('stepControls').classList.add("hide");
-          return;
-        }
-        // Include STEPCGM along with other STEP types.
-        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
-          document.getElementById('stepControls').classList.remove("hide");
-          document.getElementById('nonStepControls').classList.add("hide");
-        } else {
-          document.getElementById('nonStepControls').classList.remove("hide");
-          document.getElementById('stepControls').classList.add("hide");
-        }
-      }
-  
-      updateSKUOptions() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
-  
-        const select = document.getElementById('dropdown-sku');
-        select.innerHTML = "";
-        const placeholder = document.createElement('option');
-        placeholder.value = "";
-        placeholder.textContent = "Select SKU";
-        select.appendChild(placeholder);
-  
-        const filtered = this.configurations.filter(cfg =>
-          cfg["Parent SKU"].trim() === parent &&
-          (cfg["SKU"].startsWith("GCDGDCTP") || cfg["SKU"].startsWith("GCSGDCTP"))
+      const addPanel = (w, h, d, x, y, z, intensity) => {
+        const m = new THREE.Mesh(
+          new THREE.BoxGeometry(w, h, d),
+          new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xffffff, emissiveIntensity: intensity })
         );
-        const uniqueSKU = [...new Set(filtered.map(cfg => parseGateSKU(cfg["SKU"]).identifier))];
-        uniqueSKU.forEach(sku => {
-          const option = document.createElement('option');
-          option.value = sku;
-          if (sku === "SGDCTP") {
-            option.textContent = "Single Gate";
-          } else if (sku === "DGDCTP") {
-            option.textContent = "Double Gate";
+        m.position.set(x, y, z);
+        env.add(m);
+      };
+      addPanel(14, 0.2, 14, 0, 8.5, 0, 4.5);   // ceiling key
+      addPanel(0.2, 8, 10, -14, 3, -2, 2.2);   // left
+      addPanel(0.2, 8, 10, 14, 3, 4, 1.6);     // right
+      addPanel(10, 8, 0.2, 2, 3, -14, 2.0);    // back
+
+      const tex = pmrem.fromScene(env, 0.04).texture;
+      pmrem.dispose();
+      room.geometry.dispose();
+      env.traverse(o => { if (o.material) o.material.dispose(); if (o.geometry) o.geometry.dispose(); });
+      return tex;
+    }
+
+    applyLight() {
+      this.renderer.toneMappingExposure = this.light.exposure;
+      this.ambient.intensity = this.light.ambient;
+      this.sun.intensity = this.light.sun;
+      const r = this.light.radius;
+      const hz = THREE.MathUtils.degToRad(this.light.horizontal);
+      const vt = THREE.MathUtils.degToRad(this.light.vertical);
+      this.sun.position.set(
+        r * Math.cos(vt) * Math.cos(hz),
+        r * Math.sin(vt),
+        r * Math.cos(vt) * Math.sin(hz)
+      );
+      this.sun.target.position.set(0, this.modelCenterY || 0, 0);
+      this.sun.target.updateMatrixWorld();
+      this.ground.visible = this.light.shadow;
+    }
+
+    resize() {
+      const w = this.stageEl.clientWidth, h = this.stageEl.clientHeight;
+      if (!w || !h) return;
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h, false);
+    }
+
+    animate() {
+      requestAnimationFrame(() => this.animate());
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+    }
+
+    /* ---------- Model loading ---------- */
+    setLoading(on, sub) {
+      el('overlay-loading').classList.toggle('hide', !on);
+      if (sub) el('loading-sub').textContent = sub;
+    }
+
+    clearModel() {
+      if (this.model) {
+        this.scene.remove(this.model);
+        this.model.traverse(o => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) {
+            const mats = Array.isArray(o.material) ? o.material : [o.material];
+            mats.forEach(m => m.dispose());
+          }
+        });
+      }
+      this.model = null;
+      this.currentModelFile = null;
+      this.materials = { sheet: null, post: null, frame: null, lattice: null };
+    }
+
+    loadModel(file, scale, onReady) {
+      if (this.currentModelFile === file && this.model) {
+        if (scale != null) { this.model.scale.setScalar(scale); this.frameModel(this.model); }
+        if (onReady) onReady();
+        return;
+      }
+      const token = ++this.loadToken;
+      this.setLoading(true, file.replace('models/', ''));
+      const loader = new THREE.GLTFLoader();
+      loader.load(file, gltf => {
+        if (token !== this.loadToken) return; // a newer request superseded this
+        this.clearModel();
+        this.model = gltf.scene;
+        if (scale != null) this.model.scale.setScalar(scale);
+        this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        this.scene.add(this.model);
+        this.currentModelFile = file;
+        this.frameModel(this.model);
+        if (onReady) onReady();
+        this.setLoading(false);
+      }, undefined, err => {
+        if (token !== this.loadToken) return;
+        if (onReady && onReady.fallback) { onReady.fallback(); return; }
+        console.error('Error loading model:', file, err);
+        this.setLoading(false);
+        this.toast('Could not load 3D model', 'error');
+      });
+    }
+
+    // Frame the camera nicely around the loaded model and seat it on the ground.
+    frameModel(model) {
+      const box = new THREE.Box3().setFromObject(model);
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      this.ground.position.y = box.min.y;
+      this.modelCenterY = center.y;
+
+      // Tighten the shadow frustum around the model for crisp shadows.
+      const s = maxDim * 0.85;
+      const cam = this.sun.shadow.camera;
+      cam.left = -s; cam.right = s; cam.top = s; cam.bottom = -s;
+      cam.updateProjectionMatrix();
+      this.applyLight();
+
+      const fov = this.camera.fov * Math.PI / 180;
+      let dist = (maxDim / 2) / Math.tan(fov / 2);
+      dist *= 1.45;
+
+      const dir = new THREE.Vector3(-0.7, 0.42, 1).normalize();
+      const pos = center.clone().add(dir.multiplyScalar(dist));
+      this.camera.position.copy(pos);
+      this.camera.near = Math.max(0.05, dist / 100);
+      this.camera.far = dist * 100;
+      this.camera.updateProjectionMatrix();
+      this.controls.target.copy(center);
+      this.controls.update();
+      this.cameraHome = { pos: pos.clone(), target: center.clone() };
+    }
+
+    /* ============================================================
+       UI rendering
+       ============================================================ */
+    renderProducts() {
+      const grid = el('product-grid');
+      grid.innerHTML = '';
+      PRODUCTS.forEach(p => {
+        const card = document.createElement('button');
+        card.className = 'product-card';
+        card.dataset.id = p.id;
+        card.innerHTML = `
+          <span class="pc-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span class="pc-icon">${p.icon}</span>
+          <span class="pc-name">${p.name}</span>
+          <span class="pc-desc">${p.desc}</span>`;
+        card.addEventListener('click', () => this.selectProduct(p.id));
+        grid.appendChild(card);
+      });
+    }
+
+    selectProduct(id) {
+      const product = PRODUCTS.find(p => p.id === id);
+      if (!product) return;
+      this.sel = { parent: id, sku: '', size: '', sheet: '', post: '', frame: '', lattice: '' };
+
+      document.querySelectorAll('.product-card').forEach(c =>
+        c.classList.toggle('selected', c.dataset.id === id));
+
+      el('overlay-empty').classList.add('hide');
+      el('config-card').style.display = '';
+      el('summary-card').style.display = '';
+
+      if (product.type === 'gate') {
+        // Default to first available type + size for an instant preview.
+        const skus = this.gateSkus(id);
+        this.sel.sku = skus[0] || '';
+        const sizes = this.gateSizes(id, this.sel.sku);
+        this.sel.size = sizes[0] || '';
+        el('config-sub').textContent = 'Type, size & colours';
+      } else {
+        el('config-sub').textContent = 'Frame & lattice colours';
+      }
+
+      this.renderConfig();
+      this.applyToScene();
+    }
+
+    /* ---------- Option queries ---------- */
+    gateSkus(parent) {
+      const filtered = this.configurations.filter(c =>
+        c['Parent SKU'].trim() === parent &&
+        (c['SKU'].startsWith('GCDGDCTP') || c['SKU'].startsWith('GCSGDCTP')));
+      return uniq(filtered.map(c => parseGateSKU(c['SKU']).identifier));
+    }
+    gateSizes(parent, sku) {
+      const filtered = this.configurations.filter(c =>
+        c['Parent SKU'].trim() === parent && parseGateSKU(c['SKU']).identifier === sku);
+      return uniq(filtered.map(c => parseGateSKU(c['SKU']).size)).sort();
+    }
+    gateColours(parent, sku, size, key) {
+      const filtered = this.configurations.filter(c => {
+        const p = parseGateSKU(c['SKU']);
+        return c['Parent SKU'].trim() === parent && p.identifier === sku && p.size === size;
+      });
+      return uniq(filtered.map(c => c[key]).filter(Boolean));
+    }
+    stepColours(parent, key) {
+      const filtered = this.configurations.filter(c => c['Parent SKU'].trim() === parent);
+      return uniq(filtered.map(c => c[key]).filter(Boolean));
+    }
+
+    skuLabel(id) {
+      if (id === 'SGDCTP') return 'Single';
+      if (id === 'DGDCTP') return 'Double';
+      return id;
+    }
+
+    /* ---------- Build the customise panel ---------- */
+    renderConfig() {
+      const body = el('config-body');
+      body.innerHTML = '';
+      const product = PRODUCTS.find(p => p.id === this.sel.parent);
+      if (!product) return;
+
+      if (product.type === 'gate') {
+        // Type
+        const skus = this.gateSkus(this.sel.parent);
+        body.appendChild(this.fieldSeg('Type', skus.map(s => ({ value: s, label: this.skuLabel(s) })),
+          this.sel.sku, v => {
+            this.sel.sku = v;
+            const sizes = this.gateSizes(this.sel.parent, v);
+            this.sel.size = sizes.includes(this.sel.size) ? this.sel.size : (sizes[0] || '');
+            this.sel.sheet = ''; this.sel.post = '';
+            this.renderConfig(); this.applyToScene();
+          }));
+
+        // Size
+        const sizes = this.gateSizes(this.sel.parent, this.sel.sku);
+        body.appendChild(this.fieldSeg('Size',
+          sizes.map(s => ({ value: s, label: (parseInt(s) / 10).toFixed(1) + ' m' })),
+          this.sel.size, v => {
+            this.sel.size = v; this.sel.sheet = ''; this.sel.post = '';
+            this.renderConfig(); this.applyToScene();
+          }));
+
+        // Sheet + Post colours
+        const sheets = this.gateColours(this.sel.parent, this.sel.sku, this.sel.size, 'Sheet Colour');
+        const posts = this.gateColours(this.sel.parent, this.sel.sku, this.sel.size, 'Post Track Colour');
+        body.appendChild(this.fieldSwatches('Sheet colour', sheets, this.sel.sheet, v => {
+          this.sel.sheet = v; this.renderConfig(); this.applyToScene();
+        }));
+        body.appendChild(this.fieldSwatches('Post / track colour', posts, this.sel.post, v => {
+          this.sel.post = v; this.renderConfig(); this.applyToScene();
+        }));
+      } else {
+        const frames = this.stepColours(this.sel.parent, 'Frame Colour');
+        const lattices = this.stepColours(this.sel.parent, 'Lattice Colour');
+        body.appendChild(this.fieldSwatches('Frame colour', frames, this.sel.frame, v => {
+          this.sel.frame = v; this.renderConfig(); this.applyToScene();
+        }));
+        body.appendChild(this.fieldSwatches('Lattice colour', lattices, this.sel.lattice, v => {
+          this.sel.lattice = v; this.renderConfig(); this.applyToScene();
+        }));
+      }
+
+      this.renderSummary();
+    }
+
+    fieldSeg(label, options, selected, onPick) {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const picked = options.find(o => o.value === selected);
+      wrap.innerHTML = `<div class="field-label"><span>${label}</span><span class="picked">${picked ? picked.label : ''}</span></div>`;
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      if (!options.length) {
+        seg.innerHTML = '<span class="empty-note">No options available</span>';
+      }
+      options.forEach(o => {
+        const b = document.createElement('button');
+        b.textContent = o.label;
+        b.className = o.value === selected ? 'selected' : '';
+        b.addEventListener('click', () => onPick(o.value));
+        seg.appendChild(b);
+      });
+      wrap.appendChild(seg);
+      return wrap;
+    }
+
+    fieldSwatches(label, colours, selected, onPick) {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const lab = document.createElement('div');
+      lab.className = 'field-label';
+      lab.innerHTML = `<span>${label}</span><span class="picked">${selected || '<span style="color:var(--text-faint);font-weight:500">Not selected</span>'}</span>`;
+      wrap.appendChild(lab);
+
+      if (!colours.length) {
+        const note = document.createElement('div');
+        note.className = 'empty-note';
+        note.textContent = 'Select a size to see available colours';
+        wrap.appendChild(note);
+        return wrap;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'swatches';
+      colours.forEach(name => {
+        const hex = this.hexFor(name);
+        const sw = document.createElement('button');
+        sw.className = 'swatch' + (name === selected ? ' selected' : '');
+        sw.style.background = hex;
+        sw.title = `${name} · ${this.codeFor(name)}`;
+        sw.setAttribute('aria-label', name);
+        sw.innerHTML = TICK;
+        sw.addEventListener('click', () => onPick(name === selected ? '' : name));
+        grid.appendChild(sw);
+      });
+      wrap.appendChild(grid);
+      return wrap;
+    }
+
+    /* ---------- Summary + SKU ---------- */
+    renderSummary() {
+      const rows = el('summary-rows');
+      const product = PRODUCTS.find(p => p.id === this.sel.parent);
+      if (!product) { rows.innerHTML = ''; return; }
+      const items = [];
+      items.push(['Product', product.name, null]);
+      if (product.type === 'gate') {
+        items.push(['Type', this.sel.sku ? this.skuLabel(this.sel.sku) : '', null]);
+        items.push(['Size', this.sel.size ? (parseInt(this.sel.size) / 10).toFixed(1) + ' m' : '', null]);
+        items.push(['Sheet', this.sel.sheet, this.sel.sheet ? this.hexFor(this.sel.sheet) : null]);
+        items.push(['Post / track', this.sel.post, this.sel.post ? this.hexFor(this.sel.post) : null]);
+      } else {
+        items.push(['Frame', this.sel.frame, this.sel.frame ? this.hexFor(this.sel.frame) : null]);
+        items.push(['Lattice', this.sel.lattice, this.sel.lattice ? this.hexFor(this.sel.lattice) : null]);
+      }
+      rows.innerHTML = items.map(([k, v, dot]) => {
+        const val = v
+          ? `<span class="v">${dot ? `<span class="dot" style="background:${dot}"></span>` : ''}${v}</span>`
+          : `<span class="v unset">—</span>`;
+        return `<div class="summary-row"><span class="k">${k}</span>${val}</div>`;
+      }).join('');
+
+      this.renderSKU();
+    }
+
+    buildSKU() {
+      const product = PRODUCTS.find(p => p.id === this.sel.parent);
+      if (!product) return { sku: '', complete: false };
+      if (product.type === 'gate') {
+        const ident = this.sel.sku || 'XXXXXX';
+        const size = this.sel.size || 'XX';
+        const sheet = this.sel.sheet ? (this.codeFor(this.sel.sheet) || 'XX') : 'XX';
+        const post = this.sel.post ? (this.codeFor(this.sel.post) || 'XX') : 'XX';
+        const sku = this.sel.parent + ident + size + sheet + post;
+        return { sku, complete: !sku.includes('X') };
+      }
+      const frame = this.sel.frame ? (this.codeFor(this.sel.frame) || 'XX') : 'XX';
+      const lattice = this.sel.lattice ? (this.codeFor(this.sel.lattice) || 'XX') : 'XX';
+      const sku = this.sel.parent + frame + lattice;
+      return { sku, complete: !sku.includes('X') };
+    }
+
+    renderSKU() {
+      const { sku, complete } = this.buildSKU();
+      el('sku-value').innerHTML = sku
+        ? sku.replace(/X+/g, m => `<span class="x">${m}</span>`)
+        : '—';
+      const status = el('sku-status');
+      if (!sku) { status.className = 'status'; status.textContent = ''; return; }
+      if (complete) {
+        status.className = 'status ok';
+        status.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Complete';
+      } else {
+        status.className = 'status';
+        status.textContent = 'Incomplete';
+      }
+    }
+
+    /* ============================================================
+       Apply selection → 3D scene
+       ============================================================ */
+    applyToScene() {
+      this.renderSummary();
+      const product = PRODUCTS.find(p => p.id === this.sel.parent);
+      if (!product) return;
+
+      if (product.type === 'screen') {
+        this.loadModel(product.model, null, () => {
+          this.collectMaterials('step');
+          this.paintColours();
+        });
+        return;
+      }
+
+      // Gate: needs a type + size before a model can be shown.
+      if (!this.sel.sku || !this.sel.size) {
+        this.clearModel();
+        el('overlay-empty').classList.add('hide');
+        this.setLoading(false);
+        return;
+      }
+
+      const sample = this.configurations.find(c =>
+        c['Parent SKU'].trim() === this.sel.parent &&
+        parseGateSKU(c['SKU']).identifier === this.sel.sku);
+      let prefix = '';
+      if (sample) {
+        if (sample['SKU'].startsWith('GCDGDCTP')) prefix = 'GCDG';
+        else if (sample['SKU'].startsWith('GCSGDCTP')) prefix = 'GCSG';
+      }
+      if (!prefix) return;
+
+      const candidate = `models/${prefix}${this.sel.size}.glb`;
+      const fallback = `models/${prefix}.glb`;
+      const scaleValue = parseInt(this.sel.size) / 10;
+
+      const ready = () => { this.collectMaterials('gate'); this.paintColours(); };
+
+      if (this.currentModelFile === candidate || this.currentModelFile === fallback) {
+        // Same family already loaded — only rescale the generic fallback.
+        if (this.currentModelFile === fallback && this.model) {
+          this.model.scale.setScalar(scaleValue);
+          this.frameModel(this.model);
+        }
+        ready();
+        return;
+      }
+
+      // Try the size-specific model, fall back to the generic one (scaled).
+      const token = ++this.loadToken;
+      this.setLoading(true, candidate.replace('models/', ''));
+      const loader = new THREE.GLTFLoader();
+      loader.load(candidate, gltf => {
+        if (token !== this.loadToken) return;
+        this.clearModel();
+        this.model = gltf.scene;
+        this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        this.scene.add(this.model);
+        this.currentModelFile = candidate;
+        this.frameModel(this.model);
+        ready();
+        this.setLoading(false);
+      }, undefined, () => {
+        if (token !== this.loadToken) return;
+        loader.load(fallback, gltf => {
+          if (token !== this.loadToken) return;
+          this.clearModel();
+          this.model = gltf.scene;
+          this.model.scale.setScalar(scaleValue);
+          this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+          this.scene.add(this.model);
+          this.currentModelFile = fallback;
+          this.frameModel(this.model);
+          ready();
+          this.setLoading(false);
+        }, undefined, err => {
+          if (token !== this.loadToken) return;
+          console.error('Error loading model:', err);
+          this.setLoading(false);
+          this.toast('Could not load 3D model', 'error');
+        });
+      });
+    }
+
+    collectMaterials(kind) {
+      this.materials = { sheet: null, post: null, frame: null, lattice: null };
+      if (!this.model) return;
+      this.model.traverse(child => {
+        if (!child.isMesh || !child.material) return;
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(mat => {
+          const name = (mat.name || '').toLowerCase();
+          if (kind === 'gate') {
+            if (name.includes('accessories')) { mat.color.set('#808080'); mat.needsUpdate = true; }
+            else if (name.includes('sheet')) this.materials.sheet = mat;
+            else if (name.includes('post')) this.materials.post = mat;
           } else {
-            option.textContent = sku;
-          }
-          select.appendChild(option);
-        });
-      }
-  
-      updateSizeOptions() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
-  
-        const sku = document.getElementById('dropdown-sku').value;
-        const select = document.getElementById('dropdown-size');
-        select.innerHTML = "";
-        const placeholder = document.createElement('option');
-        placeholder.value = "";
-        placeholder.textContent = "Select Size";
-        select.appendChild(placeholder);
-  
-        const filtered = this.configurations.filter(cfg => {
-          const parsed = parseGateSKU(cfg["SKU"]);
-          return cfg["Parent SKU"].trim() === parent && parsed.identifier === sku;
-        });
-        const uniqueSizes = [...new Set(filtered.map(cfg => parseGateSKU(cfg["SKU"]).size))];
-        uniqueSizes.sort();
-        uniqueSizes.forEach(sizeCode => {
-          const option = document.createElement('option');
-          option.value = sizeCode;
-          option.textContent = (parseInt(sizeCode) / 10).toFixed(1) + "m";
-          select.appendChild(option);
-        });
-      }
-  
-      updateColorOptions() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
-          this.updateFrameLatticeOptions();
-          return;
-        }
-  
-        const sku = document.getElementById('dropdown-sku').value;
-        const sizeCode = document.getElementById('dropdown-size').value;
-  
-        const sheetSelect = document.getElementById('dropdown-sheet');
-        sheetSelect.innerHTML = "";
-        const sheetPlaceholder = document.createElement('option');
-        sheetPlaceholder.value = "";
-        sheetPlaceholder.textContent = "Select Sheet Colour";
-        sheetSelect.appendChild(sheetPlaceholder);
-  
-        const postSelect = document.getElementById('dropdown-post');
-        postSelect.innerHTML = "";
-        const postPlaceholder = document.createElement('option');
-        postPlaceholder.value = "";
-        postPlaceholder.textContent = "Select Post Colour";
-        postSelect.appendChild(postPlaceholder);
-  
-        const filtered = this.configurations.filter(cfg => {
-          const parsed = parseGateSKU(cfg["SKU"]);
-          return cfg["Parent SKU"].trim() === parent &&
-                 parsed.identifier === sku &&
-                 parsed.size === sizeCode;
-        });
-  
-        const uniqueSheet = [...new Set(filtered.map(cfg => cfg["Sheet Colour"]).filter(val => val))];
-        uniqueSheet.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          sheetSelect.appendChild(option);
-        });
-  
-        const uniquePost = [...new Set(filtered.map(cfg => cfg["Post Track Colour"]).filter(val => val))];
-        uniquePost.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          postSelect.appendChild(option);
-        });
-      }
-  
-      updateFrameLatticeOptions() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (!["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) return;
-  
-        const frameSelect = document.getElementById('dropdown-frame');
-        frameSelect.innerHTML = "";
-        const framePlaceholder = document.createElement('option');
-        framePlaceholder.value = "";
-        framePlaceholder.textContent = "Select Frame Colour";
-        frameSelect.appendChild(framePlaceholder);
-  
-        const latticeSelect = document.getElementById('dropdown-lattice');
-        latticeSelect.innerHTML = "";
-        const latticePlaceholder = document.createElement('option');
-        latticePlaceholder.value = "";
-        latticePlaceholder.textContent = "Select Lattice Colour";
-        latticeSelect.appendChild(latticePlaceholder);
-  
-        const filtered = this.configurations.filter(cfg => cfg["Parent SKU"].trim() === parent);
-        const uniqueFrame = [...new Set(filtered.map(cfg => cfg["Frame Colour"]).filter(val => val))];
-        uniqueFrame.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          frameSelect.appendChild(option);
-        });
-  
-        const uniqueLattice = [...new Set(filtered.map(cfg => cfg["Lattice Colour"]).filter(val => val))];
-        uniqueLattice.forEach(color => {
-          const option = document.createElement('option');
-          option.value = color;
-          option.textContent = color;
-          latticeSelect.appendChild(option);
-        });
-      }
-  
-      updateConfiguration() {
-        const parent = document.getElementById('dropdown-parent').value;
-        if (!parent) {
-          document.getElementById('sku').textContent = "XXXXXXXX";
-          if (this.model) {
-            this.scene.remove(this.model);
-            this.model = null;
-            this.currentModelFile = null;
-          }
-          return;
-        }
-  
-        if (["STEPSSP", "STEPSUP", "STEPWAV", "STEPCGM"].includes(parent)) {
-          const frameColor = document.getElementById('dropdown-frame').value;
-          const latticeColor = document.getElementById('dropdown-lattice').value;
-          const framePart = frameColor ? (getShortCode(frameColor) || "XX") : "XX";
-          const latticePart = latticeColor ? (getShortCode(latticeColor) || "XX") : "XX";
-          const fullSKU = parent + framePart + latticePart;
-          document.getElementById('sku').textContent = fullSKU;
-  
-          if (!this.model || this.currentModelFile !== "models/" + parent + ".glb") {
-            this.loadStepModel("models/" + parent + ".glb");
-          }
-  
-          if (this.stepMaterials.frame) {
-            const frameColorObj = this.colorMapping.find(c => c["Colour"] === frameColor);
-            this.stepMaterials.frame.color.set(frameColorObj ? frameColorObj["Hex"] : "#808080");
-            this.stepMaterials.frame.needsUpdate = true;
-          }
-          if (this.stepMaterials.lattice) {
-            const latticeColorObj = this.colorMapping.find(c => c["Colour"] === latticeColor);
-            this.stepMaterials.lattice.color.set(latticeColorObj ? latticeColorObj["Hex"] : "#808080");
-            this.stepMaterials.lattice.needsUpdate = true;
-          }
-          return;
-        }
-  
-        // Otherwise, for gate models.
-        const sku = document.getElementById('dropdown-sku').value;
-        const sizeCode = document.getElementById('dropdown-size').value;
-        const sheetColor = document.getElementById('dropdown-sheet').value;
-        const postColor = document.getElementById('dropdown-post').value;
-  
-        const identifier = sku || "XXXXXX";
-        const sizePart = sizeCode || "XX";
-        const sheetPart = sheetColor ? (getShortCode(sheetColor) || "XX") : "XX";
-        const postPart = postColor ? (getShortCode(postColor) || "XX") : "XX";
-        const fullSKU = parent + identifier + sizePart + sheetPart + postPart;
-        document.getElementById('sku').textContent = fullSKU;
-  
-        if (!parent || !sku || !sizeCode) {
-          if (this.model) {
-            this.scene.remove(this.model);
-            this.model = null;
-            this.currentModelFile = null;
-          }
-          return;
-        }
-  
-        const configMatch = this.configurations.find(cfg =>
-          cfg["Parent SKU"].trim() === parent &&
-          parseGateSKU(cfg["SKU"]).identifier === sku
-        );
-        let modelPrefix = "";
-        if (configMatch) {
-          if (configMatch["SKU"].startsWith("GCDGDCTP")) {
-            modelPrefix = "GCDG";
-          } else if (configMatch["SKU"].startsWith("GCSGDCTP")) {
-            modelPrefix = "GCSG";
-          }
-        }
-  
-          if (modelPrefix) {
-            let candidateModelFile = "models/" + modelPrefix + sizeCode + ".glb";
-            let defaultModelFile = "models/" + modelPrefix + ".glb";
-            const scaleValue = parseInt(sizeCode) / 10;
-            if (this.currentModelFile !== candidateModelFile) {
-              this.loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue);
-            } else if (this.model) {
-              if (this.currentModelFile === defaultModelFile) {
-                this.model.scale.set(scaleValue, scaleValue, scaleValue);
-              }
-            }
-          }
-  
-        if (this.materials.sheet) {
-          const sheetColorObj = this.colorMapping.find(c => c["Colour"] === sheetColor);
-          this.materials.sheet.color.set(sheetColorObj ? sheetColorObj["Hex"] : "#808080");
-          this.materials.sheet.needsUpdate = true;
-        }
-        if (this.materials.postTrack) {
-          const postColorObj = this.colorMapping.find(c => c["Colour"] === postColor);
-          this.materials.postTrack.color.set(postColorObj ? postColorObj["Hex"] : "#808080");
-          this.materials.postTrack.needsUpdate = true;
-        }
-      }
-  
-      loadStepModel(modelFile) {
-        const loader = new THREE.GLTFLoader();
-        loader.load(modelFile, (gltf) => {
-          if (this.model) {
-            this.scene.remove(this.model);
-          }
-          this.model = gltf.scene;
-          this.model.scale.set(1, 1, 1);
-          this.scene.add(this.model);
-          this.currentModelFile = modelFile;
-          this.applyStepModelMaterials();
-          this.updateConfiguration();
-        }, undefined, (error) => {
-          console.error("Error loading STEP model:", error);
-        });
-      }
-  
-      loadModelWithFallback(candidateModelFile, defaultModelFile, scaleValue) {
-        const loader = new THREE.GLTFLoader();
-        loader.load(candidateModelFile, (gltf) => {
-          console.log("Loaded candidate model:", candidateModelFile);
-          if (this.model) {
-            this.scene.remove(this.model);
-          }
-          this.model = gltf.scene;
-          this.scene.add(this.model);
-          this.currentModelFile = candidateModelFile;
-          this.applyModelMaterials();
-          this.updateConfiguration();
-        }, undefined, (error) => {
-          console.warn("Candidate model not found:", candidateModelFile, "Falling back to:", defaultModelFile);
-          this.loadModel(defaultModelFile, scaleValue);
-        });
-      }
-  
-      loadModel(modelFile, scaleValue) {
-        const loader = new THREE.GLTFLoader();
-        loader.load(modelFile, (gltf) => {
-          console.log("Loaded default model:", modelFile);
-          if (this.model) {
-            this.scene.remove(this.model);
-          }
-          this.model = gltf.scene;
-          this.model.scale.set(scaleValue, scaleValue, scaleValue);
-          this.scene.add(this.model);
-          this.currentModelFile = modelFile;
-          this.applyModelMaterials();
-          this.updateConfiguration();
-        }, undefined, (error) => {
-          console.error("Error loading model:", error);
-        });
-      }
-  
-      applyModelMaterials() {
-        this.materials.sheet = null;
-        this.materials.postTrack = null;
-        this.model.traverse(child => {
-          if (child.isMesh && child.material) {
-            child.castShadow = true;
-            const name = child.material.name.toLowerCase();
-            if (name.includes("accessories")) {
-              child.material.color.set("#808080");
-              child.material.needsUpdate = true;
-            } else if (name.includes("sheet")) {
-              this.materials.sheet = child.material;
-            } else if (name.includes("post")) {
-              this.materials.postTrack = child.material;
-            }
+            if (name.includes('frame')) this.materials.frame = mat;
+            else if (name.includes('lattice')) this.materials.lattice = mat;
           }
         });
-      }
-  
-      applyStepModelMaterials() {
-        this.stepMaterials.frame = null;
-        this.stepMaterials.lattice = null;
-        this.model.traverse(child => {
-          if (child.isMesh && child.material) {
-            child.castShadow = true;
-            const name = child.material.name.toLowerCase();
-            if (name.includes("frame")) {
-              this.stepMaterials.frame = child.material;
-            } else if (name.includes("lattice")) {
-              this.stepMaterials.lattice = child.material;
-            }
-          }
-        });
-      }
-  
-      updateMaterialsDefault() {
-        if (this.materials.sheet) {
-          this.materials.sheet.color.set("#808080");
-          this.materials.sheet.needsUpdate = true;
-        }
-        if (this.materials.postTrack) {
-          this.materials.postTrack.color.set("#808080");
-          this.materials.postTrack.needsUpdate = true;
-        }
-        if (this.stepMaterials.frame) {
-          this.stepMaterials.frame.color.set("#808080");
-          this.stepMaterials.frame.needsUpdate = true;
-        }
-        if (this.stepMaterials.lattice) {
-          this.stepMaterials.lattice.color.set("#808080");
-          this.stepMaterials.lattice.needsUpdate = true;
-        }
-      }
-  
-      resetSelections() {
-        document.getElementById('dropdown-parent').value = "";
-        this.adjustUIForParent();
-        if (document.getElementById('dropdown-sku')) {
-          document.getElementById('dropdown-sku').value = "";
-        }
-        if (document.getElementById('dropdown-size')) {
-          document.getElementById('dropdown-size').value = "";
-        }
-        if (document.getElementById('dropdown-sheet')) {
-          document.getElementById('dropdown-sheet').value = "";
-        }
-        if (document.getElementById('dropdown-post')) {
-          document.getElementById('dropdown-post').value = "";
-        }
-        if (document.getElementById('dropdown-frame')) {
-          document.getElementById('dropdown-frame').value = "";
-        }
-        if (document.getElementById('dropdown-lattice')) {
-          document.getElementById('dropdown-lattice').value = "";
-        }
-  
-        document.getElementById('sku').textContent = "XXXXXXXX";
-        this.updateMaterialsDefault();
-  
-        if (this.model) {
-          this.scene.remove(this.model);
-          this.model = null;
-          this.currentModelFile = null;
-        }
-
-        const sliderDefaults = [
-          { id: 'sun-brightness', value: this.lightDefaults.sun.intensity, digits: 2 },
-          { id: 'sun-horizontal', value: this.lightDefaults.sun.horizontal, digits: 0 },
-          { id: 'sun-vertical', value: this.lightDefaults.sun.vertical, digits: 0 }
-        ];
-        sliderDefaults.forEach(cfg => {
-          const input = document.getElementById(cfg.id);
-          const valueLabel = document.getElementById(`${cfg.id}-value`);
-          if (input && valueLabel) {
-            input.value = cfg.value;
-            valueLabel.textContent = Number(cfg.value).toFixed(cfg.digits);
-          }
-        });
-        this.applyLightSettings();
-      }
-  
-      onWindowResize() {
-        const container = document.getElementById('canvas-container');
-        this.camera.aspect = container.clientWidth / container.clientHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
-      }
-  
-      animate() {
-        requestAnimationFrame(this.animate.bind(this));
-        this.controls.update();
-        this.renderer.render(this.scene, this.camera);
-      }
+      });
     }
-  
-    window.addEventListener('load', () => {
-      new ProductConfigurator();
-    });
+
+    paintColours() {
+      const set = (mat, name) => {
+        if (!mat) return;
+        mat.color.set(name ? this.hexFor(name) : DEFAULT_GREY);
+        mat.needsUpdate = true;
+      };
+      set(this.materials.sheet, this.sel.sheet);
+      set(this.materials.post, this.sel.post);
+      set(this.materials.frame, this.sel.frame);
+      set(this.materials.lattice, this.sel.lattice);
+    }
+
+    /* ============================================================
+       Global UI / actions
+       ============================================================ */
+    bindGlobalUI() {
+      // Theme
+      const savedTheme = localStorage.getItem('cfg-theme') || 'light';
+      this.setTheme(savedTheme);
+      el('theme-toggle').addEventListener('click', () => {
+        this.setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      });
+
+      // Lighting accordion
+      const acc = el('lighting-acc');
+      el('lighting-head').addEventListener('click', () => {
+        const open = acc.classList.toggle('open');
+        el('lighting-head').setAttribute('aria-expanded', open);
+      });
+
+      // Light sliders
+      const sliders = [
+        ['s-exposure', 'v-exposure', 'exposure', v => v.toFixed(2)],
+        ['s-sun', 'v-sun', 'sun', v => v.toFixed(2)],
+        ['s-horiz', 'v-horiz', 'horizontal', v => Math.round(v) + '°'],
+        ['s-vert', 'v-vert', 'vertical', v => Math.round(v) + '°']
+      ];
+      this.sliders = sliders;
+      sliders.forEach(([sid, vid, key, fmt]) => {
+        const input = el(sid);
+        input.value = this.light[key];
+        el(vid).textContent = fmt(this.light[key]);
+        input.addEventListener('input', () => {
+          this.light[key] = Number(input.value);
+          el(vid).textContent = fmt(this.light[key]);
+          this.applyLight();
+        });
+      });
+      el('t-shadow').addEventListener('change', e => {
+        this.light.shadow = e.target.checked;
+        this.applyLight();
+      });
+
+      // Viewport toolbar
+      el('btn-autorotate').addEventListener('click', () => {
+        this.controls.autoRotate = !this.controls.autoRotate;
+        el('btn-autorotate').classList.toggle('active', this.controls.autoRotate);
+      });
+      el('btn-reset-view').addEventListener('click', () => {
+        this.camera.position.copy(this.cameraHome.pos);
+        this.controls.target.copy(this.cameraHome.target);
+        this.controls.update();
+      });
+      el('btn-screenshot').addEventListener('click', () => this.screenshot());
+      el('btn-fullscreen').addEventListener('click', () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else this.stageEl.requestFullscreen?.();
+      });
+
+      // Copy SKU
+      el('copy-sku').addEventListener('click', () => {
+        const { sku } = this.buildSKU();
+        if (!sku) return;
+        const done = () => this.toast('SKU copied to clipboard');
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(sku).then(done).catch(() => this.fallbackCopy(sku, done));
+        } else { this.fallbackCopy(sku, done); }
+      });
+
+      // Reset
+      el('reset-config').addEventListener('click', () => this.resetAll());
+
+      // Hide the drag hint after first interaction
+      const hideHint = () => { el('stage-hint').style.opacity = '0'; };
+      el('product-canvas').addEventListener('pointerdown', hideHint, { once: true });
+    }
+
+    setTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem('cfg-theme', theme);
+      el('theme-toggle').querySelector('.i-sun').style.display = theme === 'dark' ? 'none' : '';
+      el('theme-toggle').querySelector('.i-moon').style.display = theme === 'dark' ? '' : 'none';
+    }
+
+    screenshot() {
+      this.renderer.render(this.scene, this.camera);
+      const url = this.renderer.domElement.toDataURL('image/png');
+      const { sku } = this.buildSKU();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (sku || 'configuration') + '.png';
+      a.click();
+      this.toast('Snapshot downloaded');
+    }
+
+    fallbackCopy(text, done) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { /* noop */ }
+      document.body.removeChild(ta);
+    }
+
+    resetAll() {
+      this.clearModel();
+      this.sel = { parent: '', sku: '', size: '', sheet: '', post: '', frame: '', lattice: '' };
+      document.querySelectorAll('.product-card').forEach(c => c.classList.remove('selected'));
+      el('config-card').style.display = 'none';
+      el('summary-card').style.display = 'none';
+      el('overlay-empty').classList.remove('hide');
+      this.setLoading(false);
+
+      // Reset lighting to defaults
+      this.light = { exposure: 1.05, sun: 1.35, horizontal: 48, vertical: 52, shadow: true, ambient: 0.35, radius: 9 };
+      this.sliders.forEach(([sid, vid, key, fmt]) => {
+        el(sid).value = this.light[key];
+        el(vid).textContent = fmt(this.light[key]);
+      });
+      el('t-shadow').checked = true;
+      this.applyLight();
+      this.toast('Configuration reset');
+    }
+
+    toast(msg) {
+      const wrap = el('toasts');
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>${msg}</span>`;
+      wrap.appendChild(t);
+      setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 2200);
+    }
+  }
+
+  window.addEventListener('load', () => new ProductConfigurator());
   </script>
 </body>
 </html>
