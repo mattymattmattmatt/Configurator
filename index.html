@@ -1258,7 +1258,7 @@
         mats.forEach(mat => {
           const name = (mat.name || '').toLowerCase();
           if (kind === 'gate') {
-            if (name.includes('accessories')) { mat.color.set('#808080'); mat.needsUpdate = true; }
+            if (name.includes('accessories')) { mat.color.set('#808080').convertSRGBToLinear(); mat.needsUpdate = true; }
             else if (name.includes('sheet')) this.materials.sheet = mat;
             else if (name.includes('post')) this.materials.post = mat;
           } else {
@@ -1272,7 +1272,9 @@
     paintColours() {
       const set = (mat, name) => {
         if (!mat) return;
-        mat.color.set(name ? this.hexFor(name) : DEFAULT_GREY);
+        // Hex codes are sRGB; convert to linear so the renderer's sRGB output
+        // encoding reproduces the intended colour instead of brightening it.
+        mat.color.set(name ? this.hexFor(name) : DEFAULT_GREY).convertSRGBToLinear();
         mat.needsUpdate = true;
       };
       set(this.materials.sheet, this.sel.sheet);
